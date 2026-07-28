@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { AudienceNavLink } from '@/components/audience-nav-link'
-import { CTAS, EXTERNAL } from '@/lib/site'
+import { BrandWordmark } from '@/components/brand'
+import { CTAS, EXTERNAL, BRAND } from '@/lib/site'
 
 interface FooterProps {
   onContactClick?: () => void
@@ -18,9 +19,12 @@ export function Footer({ onContactClick }: FooterProps) {
         <div className="mb-20 grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <div className="mb-8 flex items-center space-x-2">
-              <span className="bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-400 bg-clip-text text-3xl font-black tracking-tighter text-transparent">
-                Aɪra
-              </span>
+              <Link href="/" aria-label={BRAND.name}>
+                <BrandWordmark
+                  tone="inherit"
+                  className="bg-gradient-to-r from-sky-300 via-blue-400 to-cyan-300 bg-clip-text text-3xl font-black tracking-tighter text-transparent"
+                />
+              </Link>
             </div>
             <p className="max-w-sm text-lg leading-relaxed text-slate-400">
               Revolutionizing education with personalized AI. Empowering the next

@@ -66,4 +66,6 @@ export function portalHrefForIntent(
 export const BRAND = {
   name: 'Aɪra',
   tagline: 'AI-powered learning for exams and careers',
+  /** Official brand icon (favicon / PWA / launcher) */
+  iconSrc: '/brand/aira-icon.png',
 } as const

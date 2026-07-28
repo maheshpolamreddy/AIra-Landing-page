@@ -1,8 +1,10 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Sparkles, X } from 'lucide-react'
+import Image from 'next/image'
+import { X } from 'lucide-react'
 import { AiAssistant } from '@/components/ai-assistant'
+import { BRAND_ICON_SRC } from '@/components/brand'
 
 export function FloatingAssistant() {
   const [isOpen, setIsOpen] = useState(false)
@@ -134,70 +136,18 @@ export function FloatingAssistant() {
           {/* Pulsing ring indicating availability */}
           <div className="absolute inset-0 rounded-full bg-blue-500/15 -z-10 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]" />
 
-          {/* Premium Vector Sparkles Launcher Design */}
-          <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-[90%] h-[90%] select-none z-10">
-            {/* Shifting Radial Glow Behind */}
-            <circle cx="50" cy="50" r="45" fill="url(#radialGlowBlue)" opacity="0.3" />
-
-            {/* Outer Glowing Ring with Blue-Cyan Gradient */}
-            <circle cx="50" cy="50" r="42" stroke="url(#ringBlueGrad)" strokeWidth="2.5" />
-
-            {/* Inner Frosty Glass Dome (White/Blue Translucency) */}
-            <circle cx="50" cy="50" r="39.5" fill="url(#glassWhiteBlue)" stroke="url(#innerBorderGrad)" strokeWidth="1" />
-
-            {/* Revolving orbital particles */}
-            <g className="animate-orbit">
-              <circle cx="50" cy="8" r="2.5" fill="#3b82f6" filter="url(#glowBlue)" />
-              <circle cx="50" cy="92" r="2" fill="#06b6d4" filter="url(#glowBlue)" />
-            </g>
-
-            {/* Large Sparkle Logo in Center (White & Blue themed) */}
-            <g className="animate-pulse-slow">
-              {/* Left smaller sparkle */}
-              <path d="M26 53C26 53 31 53 33 48C35 53 40 53 40 53C40 53 35 53 33 58C31 53 26 53 26 53Z" fill="url(#sparkleBlueGrad)" filter="url(#glowBlue)" />
-              {/* Center large sparkle */}
-              <path d="M38 50C38 50 48 50 51 40C54 50 64 50 64 50C64 50 54 50 51 60C48 50 38 50 38 50Z" fill="url(#sparkleBlueGrad)" filter="url(#glowBlue)" />
-              {/* Top right smaller sparkle */}
-              <path d="M60 37C60 37 64 37 65.5 33C67 37 71 37 71 37C71 37 67 37 65.5 41C64 37 60 37 60 37Z" fill="url(#sparkleBlueGrad)" filter="url(#glowBlue)" />
-            </g>
-
-            {/* Glossy 3D reflection arc */}
-            <path d="M16 35C23 23 35 15 50 15C65 15 77 23 84 35C77 26 65 21 50 21C35 21 23 26 16 35Z" fill="white" opacity="0.45" />
-
-            <defs>
-              <radialGradient id="radialGlowBlue" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-              </radialGradient>
-              <linearGradient id="ringBlueGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#7c3aed" />
-                <stop offset="40%" stopColor="#3b82f6" />
-                <stop offset="80%" stopColor="#06b6d4" />
-                <stop offset="100%" stopColor="#3b82f6" />
-              </linearGradient>
-              <linearGradient id="glassWhiteBlue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="#eff6ff" stopOpacity="0.85" />
-              </linearGradient>
-              <linearGradient id="innerBorderGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.7" />
-                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.2" />
-              </linearGradient>
-              <linearGradient id="sparkleBlueGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#ffffff" />
-                <stop offset="30%" stopColor="#93c5fd" />
-                <stop offset="70%" stopColor="#3b82f6" />
-                <stop offset="100%" stopColor="#06b6d4" />
-              </linearGradient>
-              <filter id="glowBlue" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="1.5" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-          </svg>
+          {/* Official Aɪra brand icon launcher */}
+          <span className="relative z-10 flex size-[70%] items-center justify-center">
+            <Image
+              src={BRAND_ICON_SRC}
+              alt=""
+              width={64}
+              height={64}
+              className="size-full object-contain drop-shadow-sm select-none animate-pulse-slow"
+              draggable={false}
+              priority
+            />
+          </span>
 
           {/* Active indicator (Green Dot) */}
           <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full z-20 flex items-center justify-center shadow-lg" title="Aɪra Assistant is available">

@@ -229,7 +229,9 @@ function LazyFeatureVideo({
   const [loadError, setLoadError] = useState(false)
   const labelId = useId()
 
-  playingRef.current = playing
+  useEffect(() => {
+    playingRef.current = playing
+  }, [playing])
 
   useEffect(() => {
     const video = videoRef.current

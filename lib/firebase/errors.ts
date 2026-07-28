@@ -12,8 +12,16 @@ export function getAuthErrorCode(err: unknown): string {
   return ''
 }
 
-export function mapAuthError(err: unknown): string {
+export function mapAuthError(err: unknown, providerKey?: string): string {
   const code = getAuthErrorCode(err)
+  const providerLabel =
+    providerKey === 'apple'
+      ? 'Apple'
+      : providerKey === 'microsoft'
+        ? 'Microsoft'
+        : providerKey === 'google'
+          ? 'Google'
+          : null
 
   switch (code) {
     case 'auth/invalid-email':
@@ -39,6 +47,9 @@ export function mapAuthError(err: unknown): string {
     case 'auth/account-exists-with-different-credential':
       return 'An account already exists with this email using a different sign-in method. Try that method instead.'
     case 'auth/operation-not-allowed':
+      if (providerLabel) {
+        return `${providerLabel} sign-in is not fully configured in Firebase yet. In Firebase Console → Authentication → Sign-in method → ${providerLabel}, enable it and add the required OAuth credentials (for Apple: Services ID, Team ID, Key ID, and private key).`
+      }
       return 'This sign-in method is not enabled in Firebase Console. Enable Email/Password or the social provider under Authentication → Sign-in method.'
     case 'auth/unauthorized-domain': {
       const host =
@@ -70,7 +81,7 @@ export function mapAuthError(err: unknown): string {
       if (err instanceof Error && err.message && !err.message.startsWith('Firebase:')) {
         return err.message
       }
-      console.error('[auth]', code || 'unknown', err)
+      console.warn('[auth]', code || 'unknown')
       return 'Something went wrong signing in. Please try again.'
     }
   }

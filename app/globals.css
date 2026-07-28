@@ -365,3 +365,14 @@
     height: 28px;
   }
 }
+
+/* Header dual-logo mark — keep GPU compositing cheap */
+.header-logo {
+  contain: layout style;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-logo {
+    transform: none !important;
+  }
+}

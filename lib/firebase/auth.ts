@@ -71,8 +71,10 @@ async function signInWithProviderPopup(
     const cred = await signInWithPopup(auth, provider)
     return await upsertOAuthProfile(cred, providerKey)
   } catch (err) {
-    console.error(`[auth] ${providerKey} sign-in failed`, getAuthErrorCode(err), err)
-    throw new Error(mapAuthError(err))
+    const code = getAuthErrorCode(err)
+    // Avoid logging the Error object — Next.js surfaces that as a Console Error overlay.
+    console.warn(`[auth] ${providerKey} sign-in failed:`, code || 'unknown')
+    throw new Error(mapAuthError(err, providerKey))
   }
 }
 
@@ -98,7 +100,7 @@ export async function signUpWithEmail(
     }
     return cred
   } catch (err) {
-    console.error('[auth] email signup failed', getAuthErrorCode(err), err)
+    console.warn('[auth] email signup failed:', getAuthErrorCode(err) || 'unknown')
     throw new Error(mapAuthError(err))
   }
 }
@@ -111,7 +113,7 @@ export async function signInWithEmail(
   try {
     return await signInWithEmailAndPassword(auth, email.trim(), password)
   } catch (err) {
-    console.error('[auth] email sign-in failed', getAuthErrorCode(err), err)
+    console.warn('[auth] email sign-in failed:', getAuthErrorCode(err) || 'unknown')
     throw new Error(mapAuthError(err))
   }
 }
@@ -145,7 +147,7 @@ export async function resetPassword(email: string): Promise<void> {
   try {
     await sendPasswordResetEmail(auth, email.trim())
   } catch (err) {
-    console.error('[auth] reset password failed', getAuthErrorCode(err), err)
+    console.warn('[auth] reset password failed:', getAuthErrorCode(err) || 'unknown')
     throw new Error(mapAuthError(err))
   }
 }

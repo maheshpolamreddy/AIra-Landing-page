@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { HeaderLogo } from '@/components/header-logo'
 import { BRAND } from '@/lib/site'
 import { cn } from '@/lib/utils'
 
@@ -33,9 +34,10 @@ export function AuthShell({
       >
         <Link
           href="/"
-          className="relative z-10 text-2xl font-bold tracking-tight text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+          className="relative z-10 inline-flex focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+          aria-label={BRAND.name}
         >
-          {BRAND.name}
+          <HeaderLogo tone="white" size="lg" />
         </Link>
 
         <div className="relative z-10 max-w-md">
@@ -67,9 +69,10 @@ export function AuthShell({
         <div className="flex items-center justify-between px-4 pt-6 sm:px-8 lg:hidden">
           <Link
             href="/"
-            className="text-xl font-bold tracking-tight text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="inline-flex focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            aria-label={BRAND.name}
           >
-            <span className="gradient-text">{BRAND.name}</span>
+            <HeaderLogo />
           </Link>
         </div>
 

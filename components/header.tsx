@@ -7,6 +7,7 @@ import { Menu, X, GraduationCap, Briefcase } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/components/auth-provider'
 import { AudienceNavLink } from '@/components/audience-nav-link'
+import { HeaderLogo } from '@/components/header-logo'
 import { cn } from '@/lib/utils'
 import { CTAS, EXTERNAL, BRAND } from '@/lib/site'
 
@@ -56,9 +57,10 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 md:px-6">
         <Link
           href={isHome ? '#home' : '/'}
-          className="shrink-0 text-xl font-bold tracking-tight text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="inline-flex shrink-0 items-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          aria-label={BRAND.name}
         >
-          <span className="gradient-text">{BRAND.name}</span>
+          <HeaderLogo />
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">

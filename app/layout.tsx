@@ -23,11 +23,17 @@ export const metadata: Metadata = {
     'Master JEE, NEET, and professional skills with personalized AI learning. Join 32k+ learners preparing smarter.',
   icons: {
     icon: [
-      { url: '/aira-favicon.png', sizes: '32x32', type: 'image/png' },
-      { url: '/aira-favicon.png', sizes: '192x192', type: 'image/png' },
+      { url: '/brand/icons/icon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/brand/icons/icon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/brand/icons/icon-48x48.png', sizes: '48x48', type: 'image/png' },
+      { url: '/brand/icons/icon-64x64.png', sizes: '64x64', type: 'image/png' },
+      { url: '/brand/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/brand/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
     ],
-    apple: [{ url: '/aira-favicon.png', sizes: '180x180', type: 'image/png' }],
+    apple: [{ url: '/brand/icons/icon-180x180.png', sizes: '180x180', type: 'image/png' }],
+    shortcut: ['/brand/icons/icon-32x32.png'],
   },
+  manifest: '/manifest.webmanifest',
 }
 
 export default function RootLayout({
@@ -41,6 +47,9 @@ export default function RootLayout({
       className={`${plusJakarta.variable} ${geistMono.variable} scroll-smooth`}
       suppressHydrationWarning
     >
+      <head>
+        <link rel="preload" href="/brand/aira-icon.png" as="image" type="image/png" />
+      </head>
       <body className="font-sans antialiased relative isolate" suppressHydrationWarning>
         <AuthDomainGuard />
         <AuthProvider>{children}</AuthProvider>

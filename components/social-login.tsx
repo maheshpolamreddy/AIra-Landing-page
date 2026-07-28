@@ -20,29 +20,72 @@ type SocialLoginProps = {
 const btnClass =
   'flex h-11 w-full items-center justify-center gap-3 rounded-[var(--radius-btn)] border border-border bg-card text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60'
 
+/** Providers that are fully configured in Firebase (client-visible flags). */
+function isProviderEnabled(provider: Provider): boolean {
+  const envKey =
+    provider === 'google'
+      ? 'NEXT_PUBLIC_AUTH_GOOGLE'
+      : provider === 'apple'
+        ? 'NEXT_PUBLIC_AUTH_APPLE'
+        : 'NEXT_PUBLIC_AUTH_MICROSOFT'
+
+  const raw = process.env[envKey]
+  // Google defaults on; Apple/Microsoft default off until Firebase IdP credentials exist.
+  if (raw === undefined || raw === '') {
+    return provider === 'google'
+  }
+  return raw === '1' || raw.toLowerCase() === 'true'
+}
+
+const PROVIDERS: Array<{
+  id: Provider
+  label: string
+  busyLabel: string
+  Icon: typeof GoogleMark
+  signIn: () => Promise<unknown>
+}> = [
+  {
+    id: 'google',
+    label: 'Continue with Google',
+    busyLabel: 'Connecting…',
+    Icon: GoogleMark,
+    signIn: signInWithGoogle,
+  },
+  {
+    id: 'apple',
+    label: 'Continue with Apple',
+    busyLabel: 'Connecting…',
+    Icon: AppleMark,
+    signIn: signInWithApple,
+  },
+  {
+    id: 'microsoft',
+    label: 'Continue with Microsoft',
+    busyLabel: 'Connecting…',
+    Icon: MicrosoftMark,
+    signIn: signInWithMicrosoft,
+  },
+]
+
 export function SocialLogin({
   onError,
   redirectTo = '/',
 }: SocialLoginProps) {
   const router = useRouter()
   const [busy, setBusy] = useState<Provider | null>(null)
+  const enabled = PROVIDERS.filter((p) => isProviderEnabled(p.id))
 
   const handle = (provider: Provider) => {
     if (busy) return
+    const entry = PROVIDERS.find((p) => p.id === provider)
+    if (!entry) return
     setBusy(provider)
 
     // Kick off auth without an intervening await before the provider call
     // (popup must stay tied to the user gesture).
-    const run =
-      provider === 'google'
-        ? signInWithGoogle()
-        : provider === 'apple'
-          ? signInWithApple()
-          : signInWithMicrosoft()
-
-    void run
+    void entry
+      .signIn()
       .then(() => {
-        // External portal URLs need a full navigation; internal paths use the router
         if (/^https?:\/\//i.test(redirectTo)) {
           window.location.assign(redirectTo)
           return
@@ -62,42 +105,23 @@ export function SocialLogin({
       })
   }
 
+  if (enabled.length === 0) return null
+
   return (
     <div className="grid w-full grid-cols-1 gap-3">
-      <Button
-        type="button"
-        variant="outline"
-        disabled={!!busy}
-        onClick={() => handle('google')}
-        className={btnClass}
-      >
-        <GoogleMark className="size-[18px] shrink-0" />
-        <span>{busy === 'google' ? 'Connecting…' : 'Continue with Google'}</span>
-      </Button>
-
-      <Button
-        type="button"
-        variant="outline"
-        disabled={!!busy}
-        onClick={() => handle('apple')}
-        className={btnClass}
-      >
-        <AppleMark className="size-[18px] shrink-0" />
-        <span>{busy === 'apple' ? 'Connecting…' : 'Continue with Apple'}</span>
-      </Button>
-
-      <Button
-        type="button"
-        variant="outline"
-        disabled={!!busy}
-        onClick={() => handle('microsoft')}
-        className={btnClass}
-      >
-        <MicrosoftMark className="size-[18px] shrink-0" />
-        <span>
-          {busy === 'microsoft' ? 'Connecting…' : 'Continue with Microsoft'}
-        </span>
-      </Button>
+      {enabled.map(({ id, label, busyLabel, Icon }) => (
+        <Button
+          key={id}
+          type="button"
+          variant="outline"
+          disabled={!!busy}
+          onClick={() => handle(id)}
+          className={btnClass}
+        >
+          <Icon className="size-[18px] shrink-0" />
+          <span>{busy === id ? busyLabel : label}</span>
+        </Button>
+      ))}
     </div>
   )
 }

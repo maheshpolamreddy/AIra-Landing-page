@@ -1,9 +1,23 @@
 'use client'
 
 import Link from 'next/link'
+import { Instagram } from 'lucide-react'
 import { AudienceNavLink } from '@/components/audience-nav-link'
 import { BrandWordmark } from '@/components/brand'
-import { CTAS, EXTERNAL, BRAND } from '@/lib/site'
+import { CTAS, EXTERNAL, BRAND, SOCIAL } from '@/lib/site'
+
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+      className={className}
+    >
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.727-8.851L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" />
+    </svg>
+  )
+}
 
 interface FooterProps {
   onContactClick?: () => void
@@ -26,10 +40,30 @@ export function Footer({ onContactClick }: FooterProps) {
                 />
               </Link>
             </div>
-            <p className="max-w-sm text-lg leading-relaxed text-slate-400">
+            <p className="mb-6 max-w-sm text-lg leading-relaxed text-slate-400">
               Revolutionizing education with personalized AI. Empowering the next
               generation of learners with adaptive paths.
             </p>
+            <div className="flex items-center gap-3">
+              <a
+                href={SOCIAL.instagram.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${BRAND.name} on Instagram`}
+                className="inline-flex size-10 items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 text-slate-300 transition-colors hover:border-pink-500/50 hover:bg-pink-500/10 hover:text-pink-300"
+              >
+                <Instagram className="size-4" strokeWidth={1.75} />
+              </a>
+              <a
+                href={SOCIAL.x.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${BRAND.name} on X`}
+                className="inline-flex size-10 items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 text-slate-300 transition-colors hover:border-slate-400 hover:bg-white/10 hover:text-white"
+              >
+                <XIcon className="size-4" />
+              </a>
+            </div>
           </div>
 
           <div>
@@ -126,6 +160,30 @@ export function Footer({ onContactClick }: FooterProps) {
             <h4 className="mb-6 text-xs font-bold tracking-wide text-white uppercase">
               Connect
             </h4>
+            <ul className="mb-5 space-y-4 text-slate-400">
+              <li>
+                <a
+                  href={SOCIAL.instagram.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 transition-colors duration-300 hover:text-pink-300"
+                >
+                  <Instagram className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
+                  Instagram
+                </a>
+              </li>
+              <li>
+                <a
+                  href={SOCIAL.x.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 transition-colors duration-300 hover:text-white"
+                >
+                  <XIcon className="size-3.5 shrink-0" />
+                  X (Twitter)
+                </a>
+              </li>
+            </ul>
             <p className="text-sm leading-relaxed text-slate-400">
               Questions about schools, demos, or partnerships?{' '}
               <Link

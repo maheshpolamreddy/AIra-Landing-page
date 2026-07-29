@@ -13,18 +13,18 @@ export const CTAS = {
 
 /**
  * Canonical stats used across the site.
- * Marked as approximate placeholders until marketing supplies verified figures.
+ * Prefer product truths over unverified vanity metrics.
  */
 export const STATS = {
-  learners: {
-    value: '32k+',
-    label: 'learners',
-    note: 'Approx. as of Jul 2026 — verify before investor decks',
+  coverage: {
+    value: 'Grades 6–12',
+    label: 'curriculum ready',
+    note: 'School learning grade bands',
   },
-  successRate: {
-    value: '95%',
-    label: 'success rate',
-    note: 'Placeholder — replace with verified completion/pass metric',
+  exams: {
+    value: 'JEE · NEET',
+    label: 'exam prep',
+    note: 'Competitive exam focus',
   },
   support: {
     value: '24/7',
@@ -32,6 +32,10 @@ export const STATS = {
     note: 'Product capability claim',
   },
 } as const
+
+/** Short trust line under hero CTAs */
+export const HERO_TRUST =
+  'Free to start · Boards, JEE, NEET & career skills' as const
 
 export const EXTERNAL = {
   schools: {
@@ -45,6 +49,18 @@ export const EXTERNAL = {
     label: 'For Professionals',
     loginHref: '/login?intent=professional',
     href: 'https://aira-edtech-f063e.web.app/',
+  },
+} as const
+
+/** Official social profiles — @aira_ai_tutor */
+export const SOCIAL = {
+  instagram: {
+    label: 'Instagram',
+    href: 'https://www.instagram.com/aira_ai_tutor',
+  },
+  x: {
+    label: 'X',
+    href: 'https://x.com/aira_ai_tutor',
   },
 } as const
 
@@ -65,7 +81,7 @@ export function portalHrefForIntent(
 
 export const BRAND = {
   name: 'Aɪra',
-  tagline: 'AI-powered learning for exams and careers',
+  tagline: 'The AI tutor that turns effort into results',
   /** Official brand icon (favicon / PWA / launcher) */
   iconSrc: '/brand/aira-icon.png',
 } as const

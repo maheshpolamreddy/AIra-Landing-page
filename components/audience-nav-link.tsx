@@ -1,8 +1,9 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/components/auth-provider'
+import { ComingSoonModal } from '@/components/coming-soon-modal'
 import { EXTERNAL } from '@/lib/site'
 import { cn } from '@/lib/utils'
 
@@ -16,8 +17,8 @@ type AudienceNavLinkProps = {
 }
 
 /**
- * Logged out → /login?intent=…
- * Logged in  → open external portal in a new tab
+ * Schools: logged out → /login?intent=school · logged in → portal
+ * Professionals: always opens "Coming soon" popup (tracks not live yet)
  */
 export function AudienceNavLink({
   audience,
@@ -26,7 +27,29 @@ export function AudienceNavLink({
   children,
 }: AudienceNavLinkProps) {
   const { user, loading } = useAuth()
+  const [comingSoonOpen, setComingSoonOpen] = useState(false)
   const config = EXTERNAL[audience]
+
+  if (audience === 'professionals') {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => {
+            onNavigate?.()
+            setComingSoonOpen(true)
+          }}
+          className={cn(className)}
+        >
+          {children}
+        </button>
+        <ComingSoonModal
+          open={comingSoonOpen}
+          onOpenChange={setComingSoonOpen}
+        />
+      </>
+    )
+  }
 
   if (!loading && user) {
     return (

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/components/auth-provider'
 import { AudienceNavLink } from '@/components/audience-nav-link'
 import { HeaderLogo } from '@/components/header-logo'
+import { UserProfileMenu } from '@/components/user-profile-menu'
 import { cn } from '@/lib/utils'
 import { CTAS, EXTERNAL, BRAND } from '@/lib/site'
 
@@ -100,31 +101,29 @@ export function Header() {
 
         <div className="flex items-center gap-2 sm:gap-3">
           {!authLoading && user ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden rounded-[var(--radius-btn)] sm:inline-flex"
-              onClick={() => void handleLogOut()}
-            >
-              Log out
-            </Button>
+            <UserProfileMenu
+              user={user}
+              onLogOut={handleLogOut}
+            />
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden rounded-[var(--radius-btn)] sm:inline-flex"
-              asChild
-            >
-              <Link href="/login">Log in</Link>
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="hidden rounded-[var(--radius-btn)] sm:inline-flex"
+                asChild
+              >
+                <Link href="/login">Log in</Link>
+              </Button>
+              <Button
+                size="sm"
+                className="hidden rounded-[var(--radius-btn)] bg-accent text-accent-foreground hover:bg-accent/90 sm:inline-flex"
+                asChild
+              >
+                <Link href={CTAS.primary.href}>{CTAS.primary.label}</Link>
+              </Button>
+            </>
           )}
-          <Button
-            size="sm"
-            className="hidden rounded-[var(--radius-btn)] bg-accent text-accent-foreground hover:bg-accent/90 sm:inline-flex"
-            asChild
-          >
-            <Link href={CTAS.primary.href}>{CTAS.primary.label}</Link>
-          </Button>
           <button
             type="button"
             className="inline-flex size-10 items-center justify-center rounded-[var(--radius-btn)] text-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:hidden"
@@ -186,28 +185,33 @@ export function Header() {
             </AudienceNavLink>
             <div className="mt-2 flex flex-col gap-2 border-t border-border pt-3 sm:hidden">
               {!authLoading && user ? (
-                <Button
-                  variant="outline"
-                  className="rounded-[var(--radius-btn)]"
-                  onClick={() => void handleLogOut()}
-                >
-                  Log out
-                </Button>
+                <div className="px-1 py-1">
+                  <UserProfileMenu user={user} onLogOut={handleLogOut} />
+                </div>
               ) : (
-                <Button
-                  variant="outline"
-                  className="rounded-[var(--radius-btn)]"
-                  asChild
-                >
-                  <Link href="/login">Log in</Link>
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    className="rounded-[var(--radius-btn)]"
+                    asChild
+                  >
+                    <Link href="/login" onClick={() => setMobileOpen(false)}>
+                      Log in
+                    </Link>
+                  </Button>
+                  <Button
+                    className="rounded-[var(--radius-btn)] bg-accent text-accent-foreground hover:bg-accent/90"
+                    asChild
+                  >
+                    <Link
+                      href={CTAS.primary.href}
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      {CTAS.primary.label}
+                    </Link>
+                  </Button>
+                </>
               )}
-              <Button
-                className="rounded-[var(--radius-btn)] bg-accent text-accent-foreground hover:bg-accent/90"
-                asChild
-              >
-                <Link href={CTAS.primary.href}>{CTAS.primary.label}</Link>
-              </Button>
             </div>
           </nav>
         </div>

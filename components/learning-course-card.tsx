@@ -1,6 +1,7 @@
 'use client'
 
 import { useId, useState, type CSSProperties } from 'react'
+import Link from 'next/link'
 import {
   ArrowRight,
   Bell,
@@ -14,7 +15,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { CTAS } from '@/lib/site'
+import { EXTERNAL } from '@/lib/site'
+import { useAuth } from '@/components/auth-provider'
 import { CoursePattern } from '@/components/course-pattern'
 import { WaitlistModal } from '@/components/waitlist-modal'
 import type { LearningCourse, MetricKind } from '@/lib/learning-courses'
@@ -66,10 +68,16 @@ export function LearningCourseCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   const [waitlistOpen, setWaitlistOpen] = useState(false)
+  const { user, loading: authLoading } = useAuth()
   const topicsId = useId()
   const patternUid = useId().replace(/:/g, '')
   const Icon = course.icon
   const { accent } = course
+  const portal =
+    course.tone === 'professional' ? EXTERNAL.professionals : EXTERNAL.schools
+  const exploreHref =
+    !authLoading && user ? portal.href : portal.loginHref
+  const exploreOpensExternal = Boolean(!authLoading && user)
 
   return (
     <article
@@ -251,9 +259,11 @@ export function LearningCourseCard({
               courseName={course.name}
             />
           </>
-        ) : (
+        ) : exploreOpensExternal ? (
           <a
-            href={CTAS.primary.href}
+            href={exploreHref}
+            target="_blank"
+            rel="noopener noreferrer"
             className={cn(
               'mt-5 inline-flex w-fit items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold',
               'border-[var(--course-cta)] text-[var(--course-cta)] bg-transparent',
@@ -268,7 +278,26 @@ export function LearningCourseCard({
               className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
               aria-hidden
             />
+            <span className="sr-only">(opens in a new tab)</span>
           </a>
+        ) : (
+          <Link
+            href={exploreHref}
+            className={cn(
+              'mt-5 inline-flex w-fit items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold',
+              'border-[var(--course-cta)] text-[var(--course-cta)] bg-transparent',
+              'transition-all duration-200 motion-reduce:transition-colors',
+              'hover:bg-[var(--course-cta)] hover:text-white',
+              'focus-visible:bg-[var(--course-cta)] focus-visible:text-white',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            )}
+          >
+            Explore Course
+            <ArrowRight
+              className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
+              aria-hidden
+            />
+          </Link>
         )}
       </div>
     </article>

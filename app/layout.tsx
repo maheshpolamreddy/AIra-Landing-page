@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Aɪra — AI-Powered Learning Platform',
   description:
-    'Master JEE, NEET, and professional skills with personalized AI learning. Join 32k+ learners preparing smarter.',
+    'Master boards, JEE, NEET, and professional skills with personalized AI tutoring — visual lessons, voice teaching, and adaptive practice.',
   icons: {
     icon: [
       { url: '/brand/icons/icon-16x16.png', sizes: '16x16', type: 'image/png' },

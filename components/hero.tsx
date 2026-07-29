@@ -2,21 +2,21 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { Users, Trophy, Headphones } from 'lucide-react'
-import { CTAS, STATS, BRAND } from '@/lib/site'
+import { BookOpen, Trophy, Headphones } from 'lucide-react'
+import { CTAS, STATS, HERO_TRUST, BRAND } from '@/lib/site'
 
 const floatingStats = [
   {
-    icon: Users,
-    value: STATS.learners.value,
-    label: STATS.learners.label,
+    icon: BookOpen,
+    value: STATS.coverage.value,
+    label: STATS.coverage.label,
     position: 'top-6 left-0 sm:top-10 sm:-left-2 md:-left-4',
     delay: '0s',
   },
   {
     icon: Trophy,
-    value: STATS.successRate.value,
-    label: STATS.successRate.label,
+    value: STATS.exams.value,
+    label: STATS.exams.label,
     position: 'bottom-16 right-0 sm:bottom-20 sm:-right-2 md:-right-4',
     delay: '0.4s',
   },
@@ -73,12 +73,12 @@ export function Hero() {
                 {BRAND.name}
               </span>
               <span className="mt-3 block text-xl font-semibold text-foreground sm:text-2xl md:text-3xl md:leading-tight">
-                Learn smarter for JEE, NEET &amp; careers
+                The AI tutor that turns effort into results
               </span>
             </h1>
-            <p className="max-w-md text-base text-muted-foreground sm:text-lg">
-              Personalized AI tutoring that adapts to every student — exam prep
-              for schools, skill tracks for professionals.
+            <p className="max-w-lg text-base text-muted-foreground sm:text-lg">
+              Visual lessons, voice teaching, and adaptive practice — from
+              boards and JEE/NEET to career skills for schools and professionals.
             </p>
           </div>
 
@@ -91,10 +91,8 @@ export function Hero() {
             </Link>
           </div>
 
-          <p className="text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">{STATS.learners.value}</span>{' '}
-            {STATS.learners.label}
-            <span className="text-neutral-400"> · approx. as of Jul 2026</span>
+          <p className="text-sm font-medium text-muted-foreground">
+            {HERO_TRUST}
           </p>
         </div>
 

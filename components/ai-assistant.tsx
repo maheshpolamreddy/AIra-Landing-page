@@ -354,25 +354,34 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
     try {
       const res = await fetch('/api/tts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'audio/wav, application/json',
+        },
         body: JSON.stringify({ text: nextSentence, language: ttsLanguage })
       })
 
-      if (res.ok) {
+      if (!res.ok) throw new Error('API request failed')
+
+      const ct = (res.headers.get('content-type') || '').toLowerCase()
+      let audio: HTMLAudioElement
+      if (ct.includes('application/json')) {
         const data = await res.json()
-        if (data.audio) {
-          const audio = new Audio(`data:audio/wav;base64,${data.audio}`)
-          audio.preload = 'auto'
-          // Attach text for dynamic expression updates on start
-          ;(audio as any).associatedText = nextSentence
-          sarvamAudioQueueRef.current.push(audio)
-          playNextSarvamAudio()
-        } else {
-          throw new Error('No audio returned')
-        }
+        if (!data?.audio) throw new Error('No audio returned')
+        audio = new Audio(`data:audio/wav;base64,${data.audio}`)
       } else {
-        throw new Error('API request failed')
+        const blob = await res.blob()
+        if (!blob || blob.size < 32) throw new Error('No audio returned')
+        const objectUrl = URL.createObjectURL(blob)
+        audio = new Audio(objectUrl)
+        audio.addEventListener('ended', () => URL.revokeObjectURL(objectUrl), { once: true })
+        audio.addEventListener('error', () => URL.revokeObjectURL(objectUrl), { once: true })
       }
+      audio.preload = 'auto'
+      // Attach text for dynamic expression updates on start
+      ;(audio as any).associatedText = nextSentence
+      sarvamAudioQueueRef.current.push(audio)
+      playNextSarvamAudio()
     } catch (e) {
       console.warn('Sarvam progressive TTS failed, falling back to browser:', e)
       fallbackToBrowserTTS(nextSentence)

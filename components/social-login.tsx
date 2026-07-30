@@ -14,6 +14,9 @@ type Provider = 'google' | 'apple' | 'microsoft'
 
 type SocialLoginProps = {
   onError?: (message: string) => void
+  /** Preferred: resolve destination after auth (role + redirect query). */
+  onSignedIn?: (uid: string) => void | Promise<void>
+  /** Legacy absolute/relative path when onSignedIn is not provided. */
   redirectTo?: string
 }
 
@@ -30,7 +33,6 @@ function isProviderEnabled(provider: Provider): boolean {
         : 'NEXT_PUBLIC_AUTH_MICROSOFT'
 
   const raw = process.env[envKey]
-  // Google defaults on; Apple/Microsoft default off until Firebase IdP credentials exist.
   if (raw === undefined || raw === '') {
     return provider === 'google'
   }
@@ -42,7 +44,7 @@ const PROVIDERS: Array<{
   label: string
   busyLabel: string
   Icon: typeof GoogleMark
-  signIn: () => Promise<unknown>
+  signIn: () => Promise<{ user: { uid: string } }>
 }> = [
   {
     id: 'google',
@@ -69,6 +71,7 @@ const PROVIDERS: Array<{
 
 export function SocialLogin({
   onError,
+  onSignedIn,
   redirectTo = '/',
 }: SocialLoginProps) {
   const router = useRouter()
@@ -81,11 +84,13 @@ export function SocialLogin({
     if (!entry) return
     setBusy(provider)
 
-    // Kick off auth without an intervening await before the provider call
-    // (popup must stay tied to the user gesture).
     void entry
       .signIn()
-      .then(() => {
+      .then(async (cred) => {
+        if (onSignedIn) {
+          await onSignedIn(cred.user.uid)
+          return
+        }
         if (/^https?:\/\//i.test(redirectTo)) {
           window.location.assign(redirectTo)
           return

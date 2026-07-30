@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000 --hostname localhost",
+    "dev:tutor-proxy": "next dev --port 3000 --hostname localhost",
     "build": "next build",
     "postbuild": "node scripts/sync-auth-domains.mjs",
     "start": "next start",

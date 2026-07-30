@@ -40,10 +40,10 @@ export const HERO_TRUST =
 export const EXTERNAL = {
   schools: {
     label: 'For Schools',
-    /** Internal login — school tools after auth */
+    /** Role home is resolved after login — do not force /teacher (causes student bounce). */
     loginHref: '/login?intent=school',
-    /** Legacy portal (post-login destination later if needed) */
-    href: 'https://ai-ra-app.vercel.app',
+    /** Fallback while role loads; AudienceNavLink replaces with real role home */
+    href: '/student/mode-selection',
   },
   professionals: {
     label: 'For Professionals',
@@ -70,11 +70,13 @@ export const LOGIN_INTENT_COPY: Record<string, string> = {
   professional: 'Signing in to access professional tools',
 }
 
-/** Where to send the user after a successful login for a given intent */
+/**
+ * External (cross-origin) post-login destinations only.
+ * School / default users use Firestore role → /student|/teacher|/admin (same origin).
+ */
 export function portalHrefForIntent(
   intent: string | null | undefined,
 ): string | null {
-  if (intent === 'school') return EXTERNAL.schools.href
   if (intent === 'professional') return EXTERNAL.professionals.href
   return null
 }

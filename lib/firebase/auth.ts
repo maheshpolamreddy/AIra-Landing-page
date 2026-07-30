@@ -11,23 +11,26 @@ import {
   type UserCredential,
   type AuthProvider,
 } from 'firebase/auth'
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { ensureAuthReady, getFirebaseAuth } from '@/lib/firebase/client'
 import { getFirebaseDb } from '@/lib/firebase/app'
 import { getAuthErrorCode, mapAuthError } from '@/lib/firebase/errors'
+import { normalizeAppRole, type AppRole } from '@/lib/auth-redirect'
 
 export type SignUpInput = {
   name: string
   email: string
   password: string
   dateOfBirth?: string
+  role?: AppRole
 }
 
 async function saveUserProfile(
   user: User,
-  extra: { name: string; dateOfBirth?: string; provider: string },
+  extra: { name: string; dateOfBirth?: string; provider: string; role?: AppRole },
 ) {
   const db = getFirebaseDb()
+  const role = normalizeAppRole(extra.role)
   await setDoc(
     doc(db, 'users', user.uid),
     {
@@ -35,13 +38,24 @@ async function saveUserProfile(
       name: extra.name,
       email: user.email,
       dateOfBirth: extra.dateOfBirth ?? null,
-      role: 'student',
+      role,
       provider: extra.provider,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     },
     { merge: true },
   )
+}
+
+/** Read role from Firestore profile; defaults to student. */
+export async function getUserAppRole(uid: string): Promise<AppRole> {
+  try {
+    const snap = await getDoc(doc(getFirebaseDb(), 'users', uid))
+    return normalizeAppRole(snap.data()?.role)
+  } catch (err) {
+    console.warn('[auth] getUserAppRole failed', err)
+    return 'student'
+  }
 }
 
 async function upsertOAuthProfile(
@@ -94,6 +108,7 @@ export async function signUpWithEmail(
         name: input.name.trim(),
         dateOfBirth: input.dateOfBirth,
         provider: 'password',
+        role: normalizeAppRole(input.role),
       })
     } catch (profileErr) {
       console.error('[auth] profile save failed', profileErr)

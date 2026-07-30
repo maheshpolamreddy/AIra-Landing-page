@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { LogOut, GraduationCap, Briefcase } from 'lucide-react'
 import type { User } from 'firebase/auth'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -13,6 +13,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ComingSoonModal } from '@/components/coming-soon-modal'
+import { getUserAppRole } from '@/lib/firebase/auth'
+import { homeForRole } from '@/lib/auth-redirect'
 import { EXTERNAL } from '@/lib/site'
 
 function displayNameFromUser(user: User): string {
@@ -45,10 +47,21 @@ export function UserProfileMenu({
   compact = false,
 }: UserProfileMenuProps) {
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
+  const [schoolsHref, setSchoolsHref] = useState(EXTERNAL.schools.href)
   const name = displayNameFromUser(user)
   const email = user.email ?? ''
   const photoURL = user.photoURL ?? undefined
   const initials = initialsFromUser(user)
+
+  useEffect(() => {
+    let cancelled = false
+    void getUserAppRole(user.uid).then((role) => {
+      if (!cancelled) setSchoolsHref(homeForRole(role))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [user.uid])
 
   return (
     <>
@@ -107,16 +120,15 @@ export function UserProfileMenu({
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem asChild>
-          <a
-            href={EXTERNAL.schools.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="cursor-pointer"
-          >
-            <GraduationCap className="size-4" aria-hidden />
-            {EXTERNAL.schools.label}
-          </a>
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onSelect={(e) => {
+            e.preventDefault()
+            window.location.assign(schoolsHref)
+          }}
+        >
+          <GraduationCap className="size-4" aria-hidden />
+          {EXTERNAL.schools.label}
         </DropdownMenuItem>
         <DropdownMenuItem
           className="cursor-pointer"

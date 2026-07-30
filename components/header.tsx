@@ -7,6 +7,7 @@ import { Menu, X, GraduationCap, Briefcase } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/components/auth-provider'
 import { AudienceNavLink } from '@/components/audience-nav-link'
+import { AuthEntryLink } from '@/components/auth-entry-link'
 import { HeaderLogo } from '@/components/header-logo'
 import { UserProfileMenu } from '@/components/user-profile-menu'
 import { cn } from '@/lib/utils'
@@ -113,14 +114,14 @@ export function Header() {
                 className="hidden rounded-[var(--radius-btn)] sm:inline-flex"
                 asChild
               >
-                <Link href="/login">Log in</Link>
+                <AuthEntryLink href="/login">Log in</AuthEntryLink>
               </Button>
               <Button
                 size="sm"
                 className="hidden rounded-[var(--radius-btn)] bg-accent text-accent-foreground hover:bg-accent/90 sm:inline-flex"
                 asChild
               >
-                <Link href={CTAS.primary.href}>{CTAS.primary.label}</Link>
+                <AuthEntryLink href={CTAS.primary.href}>{CTAS.primary.label}</AuthEntryLink>
               </Button>
             </>
           )}
@@ -195,20 +196,23 @@ export function Header() {
                     className="rounded-[var(--radius-btn)]"
                     asChild
                   >
-                    <Link href="/login" onClick={() => setMobileOpen(false)}>
+                    <AuthEntryLink
+                      href="/login"
+                      onNavigate={() => setMobileOpen(false)}
+                    >
                       Log in
-                    </Link>
+                    </AuthEntryLink>
                   </Button>
                   <Button
                     className="rounded-[var(--radius-btn)] bg-accent text-accent-foreground hover:bg-accent/90"
                     asChild
                   >
-                    <Link
+                    <AuthEntryLink
                       href={CTAS.primary.href}
-                      onClick={() => setMobileOpen(false)}
+                      onNavigate={() => setMobileOpen(false)}
                     >
                       {CTAS.primary.label}
-                    </Link>
+                    </AuthEntryLink>
                   </Button>
                 </>
               )}

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { BookOpen, Trophy, Headphones } from 'lucide-react'
 import { CTAS, STATS, HERO_TRUST, BRAND } from '@/lib/site'
+import { AuthEntryLink } from '@/components/auth-entry-link'
 
 const floatingStats = [
   {
@@ -83,9 +84,9 @@ export function Hero() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Link href={CTAS.primary.href} className="btn-primary h-11 px-6">
+            <AuthEntryLink href={CTAS.primary.href} className="btn-primary h-11 px-6">
               {CTAS.primary.label}
-            </Link>
+            </AuthEntryLink>
             <Link href={CTAS.secondary.href} className="btn-secondary h-11 px-6">
               {CTAS.secondary.label}
             </Link>

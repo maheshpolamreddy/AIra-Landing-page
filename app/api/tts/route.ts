@@ -5,18 +5,61 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
-// Language → best Sarvam female speaker mapping
+const V2_SPEAKERS = new Set([
+  'anushka', 'abhilash', 'manisha', 'vidya', 'arya', 'karun', 'hitesh',
+])
+const V3_SPEAKERS = new Set([
+  'aditya', 'ritu', 'priya', 'neha', 'rahul', 'pooja', 'rohan', 'simran',
+  'kavya', 'amit', 'dev', 'ishita', 'shreya', 'ratan', 'varun', 'manan',
+  'sumit', 'roopa', 'kabir', 'aayan', 'shubh', 'ashutosh', 'advait',
+  'amelia', 'sophia', 'anand', 'tanya', 'tarun', 'sunny', 'mani', 'gokul',
+  'vijay', 'shruti', 'suhani', 'mohit', 'kavitha', 'rehan', 'soham', 'rupali',
+])
+
+// Language → best Sarvam female speaker mapping (defaults)
 const LANG_SPEAKER_MAP: Record<string, { speaker: string; lang: string }> = {
-  'en-IN': { speaker: 'pooja',    lang: 'en-IN' },  // encouraging Indian English female
-  'hi-IN': { speaker: 'pooja',    lang: 'hi-IN' },  // Hindi
-  'te-IN': { speaker: 'pooja',    lang: 'te-IN' },  // Telugu
-  'ta-IN': { speaker: 'pooja',    lang: 'ta-IN' },  // Tamil
-  'kn-IN': { speaker: 'pooja',    lang: 'kn-IN' },  // Kannada
-  'ml-IN': { speaker: 'pooja',    lang: 'ml-IN' },  // Malayalam
-  'mr-IN': { speaker: 'pooja',    lang: 'mr-IN' },  // Marathi
-  'bn-IN': { speaker: 'pooja',    lang: 'bn-IN' },  // Bengali
+  'en-IN': { speaker: 'pooja', lang: 'en-IN' },
+  'hi-IN': { speaker: 'pooja', lang: 'hi-IN' },
+  'te-IN': { speaker: 'pooja', lang: 'te-IN' },
+  'ta-IN': { speaker: 'pooja', lang: 'ta-IN' },
+  'kn-IN': { speaker: 'pooja', lang: 'kn-IN' },
+  'ml-IN': { speaker: 'pooja', lang: 'ml-IN' },
+  'mr-IN': { speaker: 'pooja', lang: 'mr-IN' },
+  'bn-IN': { speaker: 'pooja', lang: 'bn-IN' },
+  en: { speaker: 'pooja', lang: 'en-IN' },
+  hi: { speaker: 'pooja', lang: 'hi-IN' },
+  te: { speaker: 'pooja', lang: 'te-IN' },
+  ta: { speaker: 'pooja', lang: 'ta-IN' },
+  kn: { speaker: 'pooja', lang: 'kn-IN' },
+  ml: { speaker: 'pooja', lang: 'ml-IN' },
+  mr: { speaker: 'pooja', lang: 'mr-IN' },
+  bn: { speaker: 'pooja', lang: 'bn-IN' },
 }
 
+function normalizeLanguage(language: unknown): string {
+  const raw = String(language || 'en-IN').trim().replace('_', '-')
+  if (!raw) return 'en-IN'
+  const mapped = LANG_SPEAKER_MAP[raw] || LANG_SPEAKER_MAP[raw.toLowerCase()]
+  if (mapped) return mapped.lang
+  const base = raw.split('-')[0].toLowerCase()
+  return LANG_SPEAKER_MAP[base]?.lang || 'en-IN'
+}
+
+function normalizeSpeaker(speaker: unknown, language: string): string {
+  const s = String(speaker || '').trim().toLowerCase()
+  if (s && s !== 'default' && (V2_SPEAKERS.has(s) || V3_SPEAKERS.has(s))) return s
+  return LANG_SPEAKER_MAP[language]?.speaker || 'pooja'
+}
+
+function modelForSpeaker(speaker: string): string {
+  if (V3_SPEAKERS.has(speaker)) return 'bulbul:v3'
+  return 'bulbul:v2'
+}
+
+/**
+ * Returns raw audio/wav bytes so the tutor teaching panel (and landing assistant)
+ * can play via blob URL. Also supports Accept: application/json for older clients.
+ */
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.SARVAM_API_KEY
@@ -27,32 +70,35 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { text, language = 'en-IN' } = await req.json()
-    if (!text || typeof text !== 'string') {
-      return NextResponse.json(
-        { error: 'Invalid text provided.' },
-        { status: 400 }
-      )
+    const body = await req.json()
+    const text = typeof body?.text === 'string' ? body.text.trim() : ''
+    if (!text) {
+      return NextResponse.json({ error: 'Invalid text provided.' }, { status: 400 })
     }
 
-    const { speaker, lang } = LANG_SPEAKER_MAP[language] ?? LANG_SPEAKER_MAP['en-IN']
+    const lang = normalizeLanguage(body?.language)
+    const speaker = normalizeSpeaker(body?.speaker, lang)
+    const pace =
+      typeof body?.pace === 'number' && Number.isFinite(body.pace) ? body.pace : 1.0
+    const model = modelForSpeaker(speaker)
 
-    // Call Sarvam AI REST TTS API
     const response = await fetch('https://api.sarvam.ai/text-to-speech', {
       method: 'POST',
       headers: {
         'api-subscription-key': apiKey,
         'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0'
+        'User-Agent': 'Mozilla/5.0',
       },
       body: JSON.stringify({
-        text: text,
-        speaker,
+        inputs: [text],
         target_language_code: lang,
-        speech_sample_rate: 24000,
-        model: 'bulbul:v3',
-        output_audio_codec: 'wav'
-      })
+        speaker,
+        model,
+        pace,
+        speech_sample_rate: 22050,
+        enable_preprocessing: true,
+        output_audio_codec: 'wav',
+      }),
     })
 
     if (!response.ok) {
@@ -74,12 +120,25 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    return NextResponse.json({ audio: base64Audio })
-  } catch (err: any) {
+    const accept = (req.headers.get('accept') || '').toLowerCase()
+    const wantJson = accept.includes('application/json') && !accept.includes('audio/')
+
+    if (wantJson) {
+      return NextResponse.json({ audio: base64Audio })
+    }
+
+    const bytes = Buffer.from(base64Audio, 'base64')
+    return new NextResponse(bytes, {
+      status: 200,
+      headers: {
+        'Content-Type': 'audio/wav',
+        'Cache-Control': 'public, max-age=86400',
+        'Content-Length': String(bytes.length),
+      },
+    })
+  } catch (err: unknown) {
     console.error('TTS API Route Error:', err)
-    return NextResponse.json(
-      { error: err.message || 'Internal Server Error' },
-      { status: 500 }
-    )
+    const message = err instanceof Error ? err.message : 'Internal Server Error'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

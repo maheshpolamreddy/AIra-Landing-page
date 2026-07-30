@@ -13,9 +13,10 @@ import {
   authLabelClassName,
   authPrimaryBtnClassName,
 } from '@/components/auth-shell'
-import { signInWithEmail } from '@/lib/firebase/auth'
+import { getUserAppRole, signInWithEmail } from '@/lib/firebase/auth'
 import { useAuth } from '@/components/auth-provider'
 import { LOGIN_INTENT_COPY, portalHrefForIntent } from '@/lib/site'
+import { resolvePostAuthPath } from '@/lib/auth-redirect'
 
 function LoginFallback() {
   return (
@@ -37,9 +38,10 @@ function LoginPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const intent = searchParams.get('intent')
+  const redirectParam = searchParams.get('redirect')
   const intentCopy =
     intent && LOGIN_INTENT_COPY[intent] ? LOGIN_INTENT_COPY[intent] : null
-  const portalHref = portalHrefForIntent(intent)
+  const externalPortal = portalHrefForIntent(intent)
   const { user, loading: authLoading } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -48,13 +50,15 @@ function LoginPageContent() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const goAfterAuth = () => {
-    if (portalHref) {
-      window.location.assign(portalHref)
+  const goAfterAuth = async (uid: string) => {
+    if (externalPortal) {
+      window.location.assign(externalPortal)
       return
     }
-    router.replace('/')
-    router.refresh()
+    const role = await getUserAppRole(uid)
+    // Role-matched path only — never send students through /teacher first
+    const dest = resolvePostAuthPath({ redirect: redirectParam, role })
+    window.location.assign(dest)
   }
 
   useEffect(() => {
@@ -62,23 +66,23 @@ function LoginPageContent() {
     return () => clearTimeout(timer)
   }, [])
 
+  // Auto-continue only when already signed in on arrival (not after form submit —
+  // handleLogin already navigates, avoiding a double full-page load).
+  const [autoContinued, setAutoContinued] = useState(false)
   useEffect(() => {
-    if (!authLoading && user) {
-      if (portalHref) {
-        window.location.assign(portalHref)
-      } else {
-        router.replace('/')
-      }
-    }
-  }, [authLoading, user, router, portalHref])
+    if (authLoading || !user || autoContinued || loading) return
+    setAutoContinued(true)
+    void goAfterAuth(user.uid)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user, autoContinued, loading])
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
     try {
-      await signInWithEmail(email, password)
-      goAfterAuth()
+      const cred = await signInWithEmail(email, password)
+      await goAfterAuth(cred.user.uid)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed.')
     } finally {
@@ -87,7 +91,7 @@ function LoginPageContent() {
   }
 
   if (!mounted || authLoading) return <LoginFallback />
-  if (user) return null
+  if (user) return <LoginFallback />
 
   return (
     <AuthShell
@@ -187,13 +191,19 @@ function LoginPageContent() {
 
       <SocialLogin
         onError={setError}
-        redirectTo={portalHref ?? '/'}
+        onSignedIn={async (uid) => {
+          await goAfterAuth(uid)
+        }}
       />
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{' '}
         <Link
-          href="/signup"
+          href={
+            redirectParam
+              ? `/signup?redirect=${encodeURIComponent(redirectParam)}`
+              : '/signup'
+          }
           className="font-medium text-primary underline-offset-4 hover:underline"
         >
           Create one now

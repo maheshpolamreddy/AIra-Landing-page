@@ -21,8 +21,9 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * All app routes except static assets and Next internals.
+     * All app routes except static assets, Next internals, and API routes.
+     * /api/* must stay on Next route handlers (never redirected).
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4|ico)$).*)',
+    '/((?!_next/static|_next/image|api/|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4|ico)$).*)',
   ],
 }

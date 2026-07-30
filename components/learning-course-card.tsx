@@ -77,7 +77,13 @@ export function LearningCourseCard({
     course.tone === 'professional' ? EXTERNAL.professionals : EXTERNAL.schools
   const exploreHref =
     !authLoading && user ? portal.href : portal.loginHref
-  const exploreOpensExternal = Boolean(!authLoading && user)
+  // Professionals stay cross-origin; school tools are same-origin tutor (full navigation required).
+  const exploreOpensExternal = Boolean(
+    !authLoading && user && course.tone === 'professional',
+  )
+  const exploreIsTutorPortal = Boolean(
+    !authLoading && user && course.tone !== 'professional',
+  )
 
   return (
     <article
@@ -279,6 +285,28 @@ export function LearningCourseCard({
               aria-hidden
             />
             <span className="sr-only">(opens in a new tab)</span>
+          </a>
+        ) : exploreIsTutorPortal ? (
+          <a
+            href={exploreHref}
+            onClick={(e) => {
+              e.preventDefault()
+              window.location.assign(exploreHref)
+            }}
+            className={cn(
+              'mt-5 inline-flex w-fit items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold',
+              'border-[var(--course-cta)] text-[var(--course-cta)] bg-transparent',
+              'transition-all duration-200 motion-reduce:transition-colors',
+              'hover:bg-[var(--course-cta)] hover:text-white',
+              'focus-visible:bg-[var(--course-cta)] focus-visible:text-white',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            )}
+          >
+            Explore Course
+            <ArrowRight
+              className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
+              aria-hidden
+            />
           </a>
         ) : (
           <Link

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, type FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useEffect, type FormEvent } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -14,8 +14,13 @@ import {
   authLabelClassName,
   authPrimaryBtnClassName,
 } from '@/components/auth-shell'
-import { signUpWithEmail } from '@/lib/firebase/auth'
+import { getUserAppRole, signUpWithEmail } from '@/lib/firebase/auth'
 import { useAuth } from '@/components/auth-provider'
+import {
+  normalizeAppRole,
+  resolvePostAuthPath,
+  type AppRole,
+} from '@/lib/auth-redirect'
 
 function SignupFallback() {
   return (
@@ -26,7 +31,17 @@ function SignupFallback() {
 }
 
 export default function SignupPage() {
+  return (
+    <Suspense fallback={<SignupFallback />}>
+      <SignupPageContent />
+    </Suspense>
+  )
+}
+
+function SignupPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectParam = searchParams.get('redirect')
   const { user, loading: authLoading } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -34,18 +49,32 @@ export default function SignupPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [dob, setDob] = useState('')
+  const [role, setRole] = useState<AppRole>('student')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  const goAfterAuth = async (uid: string, explicitRole?: AppRole) => {
+    const resolved = explicitRole ?? (await getUserAppRole(uid))
+    const dest = resolvePostAuthPath({
+      redirect: redirectParam,
+      role: normalizeAppRole(resolved),
+    })
+    window.location.assign(dest)
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => setMounted(true), 0)
     return () => clearTimeout(timer)
   }, [])
 
+  const [autoContinued, setAutoContinued] = useState(false)
   useEffect(() => {
-    if (!authLoading && user) router.replace('/')
-  }, [authLoading, user, router])
+    if (authLoading || !user || autoContinued || loading) return
+    setAutoContinued(true)
+    void goAfterAuth(user.uid)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user, autoContinued, loading])
 
   const handleSignup = async (e: FormEvent) => {
     e.preventDefault()
@@ -62,14 +91,14 @@ export default function SignupPage() {
 
     setLoading(true)
     try {
-      await signUpWithEmail({
+      const cred = await signUpWithEmail({
         name,
         email,
         password,
         dateOfBirth: dob || undefined,
+        role,
       })
-      router.replace('/')
-      router.refresh()
+      await goAfterAuth(cred.user.uid, role)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create account.')
     } finally {
@@ -78,7 +107,7 @@ export default function SignupPage() {
   }
 
   if (!mounted || authLoading) return <SignupFallback />
-  if (user) return null
+  if (user) return <SignupFallback />
 
   return (
     <AuthShell
@@ -124,6 +153,23 @@ export default function SignupPage() {
             autoComplete="email"
             className={authInputClassName}
           />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="role" className={authLabelClassName}>
+            I am a
+          </Label>
+          <select
+            id="role"
+            value={role}
+            onChange={(e) => setRole(normalizeAppRole(e.target.value))}
+            className={authInputClassName}
+            required
+          >
+            <option value="student">Student</option>
+            <option value="teacher">Teacher</option>
+            <option value="admin">Admin / Principal</option>
+          </select>
         </div>
 
         <div className="space-y-1.5">
@@ -214,12 +260,21 @@ export default function SignupPage() {
         </div>
       </div>
 
-      <SocialLogin onError={setError} />
+      <SocialLogin
+        onError={setError}
+        onSignedIn={async (uid) => {
+          await goAfterAuth(uid)
+        }}
+      />
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Already have an account?{' '}
         <Link
-          href="/login"
+          href={
+            redirectParam
+              ? `/login?redirect=${encodeURIComponent(redirectParam)}`
+              : '/login'
+          }
           className="font-medium text-primary underline-offset-4 hover:underline"
         >
           Sign in

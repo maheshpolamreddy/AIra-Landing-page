@@ -23,6 +23,7 @@ export const metadata: Metadata = {
     'Master boards, JEE, NEET, and professional skills with personalized AI tutoring — visual lessons, voice teaching, and adaptive practice.',
   icons: {
     icon: [
+      { url: '/favicon.ico', sizes: '48x48', type: 'image/x-icon' },
       { url: '/brand/icons/icon-16x16.png', sizes: '16x16', type: 'image/png' },
       { url: '/brand/icons/icon-32x32.png', sizes: '32x32', type: 'image/png' },
       { url: '/brand/icons/icon-48x48.png', sizes: '48x48', type: 'image/png' },

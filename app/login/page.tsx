@@ -1,7 +1,7 @@
 'use client'
 
-import { Suspense, useState, useEffect, type FormEvent } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useState, useEffect, useRef, type FormEvent } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -13,10 +13,16 @@ import {
   authLabelClassName,
   authPrimaryBtnClassName,
 } from '@/components/auth-shell'
-import { getUserAppRole, signInWithEmail } from '@/lib/firebase/auth'
+import { logOut, resolveRoleForRedirect, signInWithEmail } from '@/lib/firebase/auth'
 import { useAuth } from '@/components/auth-provider'
 import { LOGIN_INTENT_COPY, portalHrefForIntent } from '@/lib/site'
 import { resolvePostAuthPath } from '@/lib/auth-redirect'
+import {
+  clearRoleHint,
+  readRoleHint,
+  readStudentHomeHint,
+  writeRoleHint,
+} from '@/lib/session-hints'
 
 function LoginFallback() {
   return (
@@ -35,10 +41,11 @@ export default function LoginPage() {
 }
 
 function LoginPageContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const intent = searchParams.get('intent')
   const redirectParam = searchParams.get('redirect')
+  // Set by the tutor when it sends the user here after a sign-out.
+  const cameFromSignOut = searchParams.get('signedOut') === '1'
   const intentCopy =
     intent && LOGIN_INTENT_COPY[intent] ? LOGIN_INTENT_COPY[intent] : null
   const externalPortal = portalHrefForIntent(intent)
@@ -55,9 +62,14 @@ function LoginPageContent() {
       window.location.assign(externalPortal)
       return
     }
-    const role = await getUserAppRole(uid)
+    const role = await resolveRoleForRedirect(uid, readRoleHint())
+    writeRoleHint(role)
     // Role-matched path only — never send students through /teacher first
-    const dest = resolvePostAuthPath({ redirect: redirectParam, role })
+    const dest = resolvePostAuthPath({
+      redirect: redirectParam,
+      role,
+      studentHome: readStudentHomeHint(),
+    })
     window.location.assign(dest)
   }
 
@@ -66,15 +78,53 @@ function LoginPageContent() {
     return () => clearTimeout(timer)
   }, [])
 
-  // Auto-continue only when already signed in on arrival (not after form submit —
-  // handleLogin already navigates, avoiding a double full-page load).
-  const [autoContinued, setAutoContinued] = useState(false)
+  /**
+   * The tutor may run on a different origin than the landing app, in which case
+   * its sign-out cannot clear the session Firebase persisted here — the login
+   * page would then auto-continue and bounce the user straight back into the
+   * app. Honour the explicit signal instead of trusting local auth state.
+   */
+  const [signOutSettled, setSignOutSettled] = useState(!cameFromSignOut)
   useEffect(() => {
-    if (authLoading || !user || autoContinued || loading) return
-    setAutoContinued(true)
+    if (!cameFromSignOut) return
+    clearRoleHint()
+    void logOut()
+      .catch(() => {})
+      .finally(() => setSignOutSettled(true))
+  }, [cameFromSignOut])
+
+  // Auto-continue only when already signed in on arrival (not after form submit —
+  // handleLogin already navigates, avoiding a double full-page load — and never
+  // right after a sign-out, where the user asked for this form).
+  const autoContinued = useRef(false)
+  useEffect(() => {
+    if (cameFromSignOut) return
+    if (authLoading || !user || autoContinued.current || loading) return
+    autoContinued.current = true
     void goAfterAuth(user.uid)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user, autoContinued, loading])
+  }, [cameFromSignOut, authLoading, user, loading])
+
+  /**
+   * Warm the destination document while the user is still typing, so the
+   * post-login navigation does not start from a cold cache.
+   */
+  useEffect(() => {
+    if (!mounted || externalPortal) return
+    const role = readRoleHint()
+    if (!role) return
+    const href = resolvePostAuthPath({
+      redirect: redirectParam,
+      role,
+      studentHome: readStudentHomeHint(),
+    })
+    const link = document.createElement('link')
+    link.rel = 'prefetch'
+    link.as = 'document'
+    link.href = href
+    document.head.appendChild(link)
+    return () => link.remove()
+  }, [mounted, externalPortal, redirectParam])
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault()
@@ -90,8 +140,10 @@ function LoginPageContent() {
     }
   }
 
-  if (!mounted || authLoading) return <LoginFallback />
-  if (user) return <LoginFallback />
+  if (!mounted || authLoading || !signOutSettled) return <LoginFallback />
+  // After a sign-out we always show the form, even if clearing the session
+  // failed — an endless spinner would be worse than a stale auth flag.
+  if (user && !cameFromSignOut) return <LoginFallback />
 
   return (
     <AuthShell

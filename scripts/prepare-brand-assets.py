@@ -89,6 +89,9 @@ for s in sizes:
     resize_rgba(icon, s).save(out, "PNG", optimize=True)
     print("Wrote", out)
 
+# Multi-size .ico for the implicit /favicon.ico request browsers make regardless of <link>
+icon.save(os.path.join("public", "favicon.ico"), format="ICO", sizes=[(16, 16), (32, 32), (48, 48)])
+
 # Convenience copies used by Next metadata / PWA conventions
 shutil.copyfile(os.path.join(icons_dir, "icon-32x32.png"), os.path.join("public", "favicon-32x32.png"))
 shutil.copyfile(os.path.join(icons_dir, "icon-16x16.png"), os.path.join("public", "favicon-16x16.png"))

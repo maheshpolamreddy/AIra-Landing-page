@@ -1,7 +1,7 @@
 'use client'
 
-import { Suspense, useState, useEffect, type FormEvent } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useState, useEffect, useRef, type FormEvent } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -14,8 +14,9 @@ import {
   authLabelClassName,
   authPrimaryBtnClassName,
 } from '@/components/auth-shell'
-import { getUserAppRole, signUpWithEmail } from '@/lib/firebase/auth'
+import { resolveRoleForRedirect, signUpWithEmail } from '@/lib/firebase/auth'
 import { useAuth } from '@/components/auth-provider'
+import { readRoleHint, readStudentHomeHint, writeRoleHint } from '@/lib/session-hints'
 import {
   normalizeAppRole,
   resolvePostAuthPath,
@@ -39,7 +40,6 @@ export default function SignupPage() {
 }
 
 function SignupPageContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get('redirect')
   const { user, loading: authLoading } = useAuth()
@@ -55,10 +55,14 @@ function SignupPageContent() {
   const [error, setError] = useState<string | null>(null)
 
   const goAfterAuth = async (uid: string, explicitRole?: AppRole) => {
-    const resolved = explicitRole ?? (await getUserAppRole(uid))
+    const resolved = normalizeAppRole(
+      explicitRole ?? (await resolveRoleForRedirect(uid, readRoleHint())),
+    )
+    writeRoleHint(resolved)
     const dest = resolvePostAuthPath({
       redirect: redirectParam,
-      role: normalizeAppRole(resolved),
+      role: resolved,
+      studentHome: readStudentHomeHint(),
     })
     window.location.assign(dest)
   }
@@ -68,13 +72,13 @@ function SignupPageContent() {
     return () => clearTimeout(timer)
   }, [])
 
-  const [autoContinued, setAutoContinued] = useState(false)
+  const autoContinued = useRef(false)
   useEffect(() => {
-    if (authLoading || !user || autoContinued || loading) return
-    setAutoContinued(true)
+    if (authLoading || !user || autoContinued.current || loading) return
+    autoContinued.current = true
     void goAfterAuth(user.uid)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user, autoContinued, loading])
+  }, [authLoading, user, loading])
 
   const handleSignup = async (e: FormEvent) => {
     e.preventDefault()

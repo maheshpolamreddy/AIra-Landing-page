@@ -30,7 +30,7 @@ export function AudienceNavLink({
 }: AudienceNavLinkProps) {
   const { user, loading } = useAuth()
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
-  const [portalHref, setPortalHref] = useState(EXTERNAL.schools.href)
+  const [portalHref, setPortalHref] = useState<string>(EXTERNAL.schools.href)
   const config = EXTERNAL[audience]
 
   useEffect(() => {

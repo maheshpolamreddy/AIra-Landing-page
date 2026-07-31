@@ -47,7 +47,7 @@ export function UserProfileMenu({
   compact = false,
 }: UserProfileMenuProps) {
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
-  const [schoolsHref, setSchoolsHref] = useState(EXTERNAL.schools.href)
+  const [schoolsHref, setSchoolsHref] = useState<string>(EXTERNAL.schools.href)
   const name = displayNameFromUser(user)
   const email = user.email ?? ''
   const photoURL = user.photoURL ?? undefined

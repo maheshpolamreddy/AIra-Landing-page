@@ -8,6 +8,22 @@ export const ROLE_HOME: Record<AppRole, string> = {
   admin: '/admin/dashboard',
 }
 
+/**
+ * Destinations a student can be sent to instead of the mode picker, once they
+ * have already chosen a mode. Kept as an allow-list so a tampered hint can
+ * never redirect somewhere unguarded.
+ */
+export const STUDENT_HOMES = [
+  '/student/curriculum',
+  '/student/competitive',
+  '/student/dashboard',
+] as const
+
+export function sanitizeStudentHome(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  return (STUDENT_HOMES as readonly string[]).includes(raw) ? raw : null
+}
+
 export function normalizeAppRole(role: unknown): AppRole {
   if (role === 'teacher' || role === 'admin') return role
   return 'student'
@@ -34,7 +50,15 @@ export function sanitizeAppRedirect(raw: string | null | undefined): string | nu
   return allowed ? decoded : null
 }
 
-export function homeForRole(role: AppRole): string {
+/**
+ * `studentHome` is the mode a returning student already picked. Passing it
+ * skips the mode picker on every subsequent login.
+ */
+export function homeForRole(role: AppRole, studentHome?: string | null): string {
+  if (role === 'student') {
+    const remembered = sanitizeStudentHome(studentHome)
+    if (remembered) return remembered
+  }
   return ROLE_HOME[role]
 }
 
@@ -58,9 +82,15 @@ export function redirectMatchesRole(
 export function resolvePostAuthPath(options: {
   redirect?: string | null
   role: AppRole
+  studentHome?: string | null
 }): string {
   if (redirectMatchesRole(options.redirect, options.role)) {
-    return sanitizeAppRedirect(options.redirect)!
+    const safe = sanitizeAppRedirect(options.redirect)!
+    // The mode picker is the generic student entry point, so treat it as "no
+    // preference" and let a remembered mode win instead.
+    if (!(options.role === 'student' && safe === ROLE_HOME.student)) {
+      return safe
+    }
   }
-  return homeForRole(options.role)
+  return homeForRole(options.role, options.studentHome)
 }

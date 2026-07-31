@@ -16,6 +16,7 @@ import { ensureAuthReady, getFirebaseAuth } from '@/lib/firebase/client'
 import { getFirebaseDb } from '@/lib/firebase/app'
 import { getAuthErrorCode, mapAuthError } from '@/lib/firebase/errors'
 import { normalizeAppRole, type AppRole } from '@/lib/auth-redirect'
+import { clearRoleHint } from '@/lib/session-hints'
 
 export type SignUpInput = {
   name: string
@@ -55,6 +56,34 @@ export async function getUserAppRole(uid: string): Promise<AppRole> {
   } catch (err) {
     console.warn('[auth] getUserAppRole failed', err)
     return 'student'
+  }
+}
+
+/**
+ * Role for the post-auth redirect, without letting a slow Firestore read hold
+ * the navigation open.
+ *
+ * A cached role from a previous session is almost always right, so we only wait
+ * briefly for confirmation. With no cache we wait longer, because guessing
+ * wrong would bounce a teacher through a student URL first. Either way the
+ * tutor's RoleGuard corrects a wrong guess on arrival.
+ */
+export async function resolveRoleForRedirect(
+  uid: string,
+  cachedRole: AppRole | null,
+): Promise<AppRole> {
+  const budgetMs = cachedRole ? 600 : 2500
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      getUserAppRole(uid),
+      new Promise<AppRole>((resolve) => {
+        timer = setTimeout(() => resolve(cachedRole ?? 'student'), budgetMs)
+      }),
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
   }
 }
 
@@ -173,5 +202,9 @@ export async function logOut(): Promise<void> {
     await signOut(auth)
   } catch (err) {
     throw new Error(mapAuthError(err))
+  } finally {
+    // Drop the role hint even if sign-out threw, so the next person on this
+    // device is never routed as the previous one.
+    clearRoleHint()
   }
 }

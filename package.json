@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000 --hostname localhost",
-    "dev:tutor-proxy": "next dev --port 3000 --hostname localhost",
+    "dev": "next dev --port 3000 --hostname 0.0.0.0",
+    "dev:tutor-proxy": "next dev --port 3000 --hostname 0.0.0.0",
     "build": "next build",
     "postbuild": "node scripts/sync-auth-domains.mjs",
     "start": "next start",

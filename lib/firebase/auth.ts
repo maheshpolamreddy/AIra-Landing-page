@@ -27,28 +27,79 @@ export type SignUpInput = {
   role?: AppRole
 }
 
+const WELCOME_HINT_KEY = 'aira:welcome-email-sent'
+const WELCOME_TIMEOUT_MS = 12_000
+
+function readWelcomeHint(uid: string): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return window.localStorage.getItem(WELCOME_HINT_KEY) === uid
+  } catch {
+    return false
+  }
+}
+
+function writeWelcomeHint(uid: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(WELCOME_HINT_KEY, uid)
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
- * Best-effort welcome email. Never blocks signup/login if mail fails.
+ * Best-effort welcome email.
+ * Must be awaited before hard navigations (`window.location.assign`) — a
+ * fire-and-forget call was getting aborted when signup redirected immediately.
  */
-async function requestWelcomeEmail(user: User, name?: string): Promise<void> {
+async function requestWelcomeEmail(
+  user: User,
+  name?: string,
+  options: { force?: boolean } = {},
+): Promise<void> {
   try {
     if (!user.email) return
+    if (!options.force && readWelcomeHint(user.uid)) return
+
     const idToken = await user.getIdToken()
-    await fetch('/api/welcome', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${idToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name:
-          name?.trim() ||
-          user.displayName?.trim() ||
-          user.email.split('@')[0] ||
-          'Learner',
-      }),
-      keepalive: true,
-    })
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => controller.abort(), WELCOME_TIMEOUT_MS)
+
+    try {
+      const res = await fetch('/api/welcome', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name:
+            name?.trim() ||
+            user.displayName?.trim() ||
+            user.email.split('@')[0] ||
+            'Learner',
+        }),
+        keepalive: true,
+        signal: controller.signal,
+      })
+
+      let payload: { ok?: boolean; skipped?: boolean; sent?: boolean; reason?: string } = {}
+      try {
+        payload = (await res.json()) as typeof payload
+      } catch {
+        /* ignore non-json */
+      }
+
+      // Mark local hint whenever the server confirms send or already-sent.
+      if (res.ok && (payload.sent || payload.skipped || payload.ok)) {
+        writeWelcomeHint(user.uid)
+      } else {
+        console.warn('[auth] welcome email response', res.status, payload)
+      }
+    } finally {
+      window.clearTimeout(timer)
+    }
   } catch (err) {
     console.warn('[auth] welcome email request failed', err)
   }
@@ -131,15 +182,19 @@ async function upsertOAuthProfile(
     'Student'
   const isNewUser = getAdditionalUserInfo(cred)?.isNewUser === true
 
+  let isNewProfile = isNewUser
   try {
-    await saveUserProfile(cred.user, { name, provider })
+    const saved = await saveUserProfile(cred.user, { name, provider })
+    isNewProfile = isNewProfile || saved.isNew
   } catch (profileErr) {
     console.error('[auth] profile save failed', profileErr)
   }
 
-  // First OAuth account only — returning users must not get another welcome mail.
-  if (isNewUser) {
-    void requestWelcomeEmail(cred.user, name)
+  // First-time accounts (Auth or Firestore) — await so redirect cannot abort send.
+  // Returning users: still attempt once if this device never confirmed delivery
+  // (covers accounts created before welcome mail shipped). API stays idempotent.
+  if (isNewUser || isNewProfile || !readWelcomeHint(cred.user.uid)) {
+    await requestWelcomeEmail(cred.user, name, { force: isNewUser || isNewProfile })
   }
 
   return cred
@@ -185,8 +240,8 @@ export async function signUpWithEmail(
     } catch (profileErr) {
       console.error('[auth] profile save failed', profileErr)
     }
-    // Email signup always creates a new Auth user — send welcome once.
-    void requestWelcomeEmail(cred.user, displayName)
+    // Await welcome send BEFORE signup page redirects away.
+    await requestWelcomeEmail(cred.user, displayName, { force: true })
     return cred
   } catch (err) {
     console.warn('[auth] email signup failed:', getAuthErrorCode(err) || 'unknown')
@@ -200,7 +255,12 @@ export async function signInWithEmail(
 ): Promise<UserCredential> {
   const auth = await ensureAuthReady()
   try {
-    return await signInWithEmailAndPassword(auth, email.trim(), password)
+    const cred = await signInWithEmailAndPassword(auth, email.trim(), password)
+    // Backfill welcome for accounts that never received it (idempotent API).
+    if (!readWelcomeHint(cred.user.uid)) {
+      await requestWelcomeEmail(cred.user)
+    }
+    return cred
   } catch (err) {
     console.warn('[auth] email sign-in failed:', getAuthErrorCode(err) || 'unknown')
     throw new Error(mapAuthError(err))

@@ -77,8 +77,18 @@ export async function POST(request: Request) {
     email.split('@')[0] ||
     'Learner'
 
+  console.info('[welcome] sending', {
+    uid: verified.uid,
+    email: email.replace(/(.{2}).+(@.+)/, '$1***$2'),
+  })
+
   const result = await sendWelcomeEmail({ to: email, name })
   if (!result.ok) {
+    console.error('[welcome] send failed', {
+      uid: verified.uid,
+      error: result.error,
+      configured: result.configured,
+    })
     // Soft failure so signup/login UI is never blocked
     return Response.json({
       ok: false,

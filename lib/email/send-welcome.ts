@@ -5,14 +5,24 @@ export type SendWelcomeResult =
   | { ok: true; messageId?: string }
   | { ok: false; error: string; configured: boolean }
 
+function cleanEnv(value: string | undefined): string {
+  const raw = value?.trim() || ''
+  // Vercel / dotenv sometimes wraps values in quotes
+  if (
+    (raw.startsWith('"') && raw.endsWith('"')) ||
+    (raw.startsWith("'") && raw.endsWith("'"))
+  ) {
+    return raw.slice(1, -1).trim()
+  }
+  return raw
+}
+
 function smtpConfig() {
-  const host = process.env.SMTP_HOST?.trim() || 'smtp.gmail.com'
-  const port = Number(process.env.SMTP_PORT || '465')
-  const user = process.env.SMTP_USER?.trim() || ''
-  const pass = process.env.SMTP_PASS?.trim() || ''
-  const from =
-    process.env.SMTP_FROM?.trim() ||
-    (user ? `AIra <${user}>` : '')
+  const host = cleanEnv(process.env.SMTP_HOST) || 'smtp.gmail.com'
+  const port = Number(cleanEnv(process.env.SMTP_PORT) || '465')
+  const user = cleanEnv(process.env.SMTP_USER)
+  const pass = cleanEnv(process.env.SMTP_PASS)
+  const from = cleanEnv(process.env.SMTP_FROM) || (user ? `AIra <${user}>` : '')
 
   return { host, port, user, pass, from }
 }

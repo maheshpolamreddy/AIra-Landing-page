@@ -41,6 +41,7 @@ const nextConfig = {
   // Hostnames only (no ports). Missing 127.0.0.1 blocks /_next/* when the
   // browser opens http://127.0.0.1:3000 and looks like "server not connecting".
   allowedDevOrigins: [
+    '*.trycloudflare.com',
     '127.0.0.1',
     'localhost',
     '0.0.0.0',

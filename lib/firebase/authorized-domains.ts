@@ -22,8 +22,13 @@ export function normalizeHostname(host: string): string {
   return host.split(':')[0]?.toLowerCase() ?? host.toLowerCase()
 }
 
-/** Dev-only hostnames that should redirect to localhost (Firebase allows localhost by default). */
-export const REDIRECT_TO_LOCALHOST_HOSTS = new Set(['127.0.0.1'])
+/**
+ * Previously redirected 127.0.0.1 → localhost for Firebase authorized domains.
+ * That breaks Cursor/cloud port-forwarding (browser jumps off the tunnel to the
+ * user's own localhost). 127.0.0.1 is already in REQUIRED_AUTH_DOMAINS, so keep
+ * the request host as-is.
+ */
+export const REDIRECT_TO_LOCALHOST_HOSTS = new Set<string>([])
 
 export function shouldRedirectToLocalhost(hostname: string): boolean {
   return REDIRECT_TO_LOCALHOST_HOSTS.has(normalizeHostname(hostname))

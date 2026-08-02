@@ -38,7 +38,12 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Hostnames only (no ports). Missing 127.0.0.1 blocks /_next/* when the
+  // browser opens http://127.0.0.1:3000 and looks like "server not connecting".
   allowedDevOrigins: [
+    '127.0.0.1',
+    'localhost',
+    '0.0.0.0',
     '127.0.0.1:3000',
     'localhost:3000',
     '127.0.0.1:5173',

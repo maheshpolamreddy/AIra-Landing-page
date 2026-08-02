@@ -2,6 +2,7 @@ import {
   GoogleAuthProvider,
   OAuthProvider,
   createUserWithEmailAndPassword,
+  getAdditionalUserInfo,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -26,14 +27,45 @@ export type SignUpInput = {
   role?: AppRole
 }
 
+/**
+ * Best-effort welcome email. Never blocks signup/login if mail fails.
+ */
+async function requestWelcomeEmail(user: User, name?: string): Promise<void> {
+  try {
+    if (!user.email) return
+    const idToken = await user.getIdToken()
+    await fetch('/api/welcome', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name:
+          name?.trim() ||
+          user.displayName?.trim() ||
+          user.email.split('@')[0] ||
+          'Learner',
+      }),
+      keepalive: true,
+    })
+  } catch (err) {
+    console.warn('[auth] welcome email request failed', err)
+  }
+}
+
 async function saveUserProfile(
   user: User,
   extra: { name: string; dateOfBirth?: string; provider: string; role?: AppRole },
 ) {
   const db = getFirebaseDb()
   const role = normalizeAppRole(extra.role)
+  const ref = doc(db, 'users', user.uid)
+  const existing = await getDoc(ref)
+  const isNew = !existing.exists()
+
   await setDoc(
-    doc(db, 'users', user.uid),
+    ref,
     {
       uid: user.uid,
       name: extra.name,
@@ -41,11 +73,13 @@ async function saveUserProfile(
       dateOfBirth: extra.dateOfBirth ?? null,
       role,
       provider: extra.provider,
-      createdAt: serverTimestamp(),
+      ...(isNew ? { createdAt: serverTimestamp() } : {}),
       updatedAt: serverTimestamp(),
     },
     { merge: true },
   )
+
+  return { isNew }
 }
 
 /** Read role from Firestore profile; defaults to student. */
@@ -95,11 +129,19 @@ async function upsertOAuthProfile(
     cred.user.displayName?.trim() ||
     cred.user.email?.split('@')[0] ||
     'Student'
+  const isNewUser = getAdditionalUserInfo(cred)?.isNewUser === true
+
   try {
     await saveUserProfile(cred.user, { name, provider })
   } catch (profileErr) {
     console.error('[auth] profile save failed', profileErr)
   }
+
+  // First OAuth account only — returning users must not get another welcome mail.
+  if (isNewUser) {
+    void requestWelcomeEmail(cred.user, name)
+  }
+
   return cred
 }
 
@@ -131,10 +173,11 @@ export async function signUpWithEmail(
       input.email.trim(),
       input.password,
     )
-    await updateProfile(cred.user, { displayName: input.name.trim() })
+    const displayName = input.name.trim()
+    await updateProfile(cred.user, { displayName })
     try {
       await saveUserProfile(cred.user, {
-        name: input.name.trim(),
+        name: displayName,
         dateOfBirth: input.dateOfBirth,
         provider: 'password',
         role: normalizeAppRole(input.role),
@@ -142,6 +185,8 @@ export async function signUpWithEmail(
     } catch (profileErr) {
       console.error('[auth] profile save failed', profileErr)
     }
+    // Email signup always creates a new Auth user — send welcome once.
+    void requestWelcomeEmail(cred.user, displayName)
     return cred
   } catch (err) {
     console.warn('[auth] email signup failed:', getAuthErrorCode(err) || 'unknown')

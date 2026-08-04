@@ -23,7 +23,7 @@ export type WeeklyExamSessionDto = {
 const DATA_PATH = path.join(process.cwd(), 'data', 'weekly-exam-schedules.json')
 
 declare global {
-  // eslint-disable-next-line no-var
+  // Keep a process-wide in-memory copy for warm serverless instances.
   var __airaWeeklyExamMemory: WeeklyExamSessionDto[] | undefined
 }
 
@@ -48,10 +48,22 @@ function writeDisk(sessions: WeeklyExamSessionDto[]) {
 }
 
 export function loadWeeklyExams(): WeeklyExamSessionDto[] {
+  const disk = readDisk()
   if (!globalThis.__airaWeeklyExamMemory) {
-    globalThis.__airaWeeklyExamMemory = readDisk()
+    globalThis.__airaWeeklyExamMemory = disk
+    return disk
   }
-  return globalThis.__airaWeeklyExamMemory
+
+  // Merge disk + memory by updatedAt so file edits and in-memory POSTs stay consistent.
+  const byId = new Map<string, WeeklyExamSessionDto>()
+  for (const s of disk) byId.set(s.id, s)
+  for (const s of globalThis.__airaWeeklyExamMemory) {
+    const existing = byId.get(s.id)
+    if (!existing || s.updatedAt >= existing.updatedAt) byId.set(s.id, s)
+  }
+  const merged = [...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  globalThis.__airaWeeklyExamMemory = merged
+  return merged
 }
 
 export function upsertWeeklyExam(session: WeeklyExamSessionDto): WeeklyExamSessionDto[] {

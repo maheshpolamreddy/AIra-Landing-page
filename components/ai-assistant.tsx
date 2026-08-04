@@ -141,8 +141,8 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
   }, [isClient, isModal])
 
   // ─── Stop all audio/video on unmount (e.g. modal close) ─────────────────────
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    const video = videoRef.current
     return () => {
       // Stop Web Speech API
       if (typeof window !== 'undefined') window.speechSynthesis.cancel()
@@ -157,7 +157,6 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
       isFetchingSarvamRef.current = false
       isPlayingSarvamRef.current = false
       // Reset avatar video
-      const video = videoRef.current
       if (video) {
         video.pause()
         video.currentTime = 0

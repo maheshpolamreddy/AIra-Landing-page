@@ -69,12 +69,12 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Try primary fast model first, fall back to secondary if needed
+    // Try primary fast model first, fall back to a currently supported Groq model
     let response = await callGroq('llama-3.1-8b-instant')
 
     if (!response.ok) {
       console.warn('Primary model failed, trying fallback model...')
-      response = await callGroq('llama3-8b-8192')
+      response = await callGroq('llama-3.3-70b-versatile')
     }
 
     if (!response.ok) {
@@ -94,18 +94,31 @@ export async function POST(req: NextRequest) {
           return
         }
         const reader = response.body.getReader()
-        const decoder = new TextDecoder()
-        
+        let closed = false
         try {
           while (true) {
             const { done, value } = await reader.read()
             if (done) break
             controller.enqueue(value)
           }
-        } catch (e) {
-          controller.error(e)
-        } finally {
+          closed = true
           controller.close()
+        } catch (e) {
+          try {
+            controller.error(e)
+            closed = true
+          } catch {
+            /* already closed */
+          }
+        } finally {
+          reader.cancel().catch(() => {})
+          if (!closed) {
+            try {
+              controller.close()
+            } catch {
+              /* already errored/closed */
+            }
+          }
         }
       }
     })

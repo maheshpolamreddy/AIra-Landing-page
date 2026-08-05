@@ -9,15 +9,19 @@
 
 ## Local development
 ```bash
+# One-shot (from landing repo): bash scripts/cloud-agent-install.sh && bash scripts/dev-both.sh
+
 # Terminal 1 — tutor
-cd "…/AIra Project/Project"
-npm run dev          # http://localhost:5173
+cd ~/AIra-AI-tutor   # or your clone path
+npm run dev          # http://127.0.0.1:5173
 
 # Terminal 2 — landing (proxies tutor routes + owns /api/*)
-cd "…/AIra landing page"
-pnpm dev             # http://localhost:3000
+cd "…/AIra-Landing-page"
+pnpm dev             # http://127.0.0.1:3000
 ```
-Open **http://localhost:3000** only. Sign in at `/login`, then you should land on the role home under the same origin.
+Open **http://127.0.0.1:3000** (or localhost) only. Sign in at `/login`, then you should land on the role home under the same origin.
+
+Both apps bind to IPv4 `127.0.0.1` in dev so Windows/Linux localhost IPv6 mismatches do not break the landing↔tutor proxy.
 
 ### API routing
 - Landing owns `/api/tts`, `/api/tts/health`, `/api/chat`, `/api/waitlist` (Next.js route handlers).

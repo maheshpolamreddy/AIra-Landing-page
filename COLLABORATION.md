@@ -102,7 +102,12 @@ After production deploys, smoke-test:
 
 ## Cursor Cloud Agents
 
-`.cursor/environment.json` installs both apps and declares the tutor repo as a dependency. After merging this config to `main`, create/update the Cloud Agents environment in the [dashboard](https://cursor.com/dashboard/cloud-agents#environments) so both collaborators’ agents share the same install/start scripts. Add secrets (`GROQ_API_KEY`, etc.) in the environment Secrets tab — not in git.
+`.cursor/environment.json` installs both apps and declares the tutor repo as a dependency. After merging this config to `main`, create/update the Cloud Agents environment in the [dashboard](https://cursor.com/dashboard/cloud-agents#environments) as a **multi-repo** environment that includes both:
+
+1. `maheshpolamreddy/AIra-Landing-page`
+2. `maheshpolamreddy/AIra---AI-tutor`
+
+That gives both collaborators’ agents clone + push access to each repo. Add secrets (`GROQ_API_KEY`, etc.) in the environment Secrets tab — not in git.
 
 ## Checklist for a safe release
 

@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000 --hostname localhost",
-    "dev:tutor-proxy": "next dev --port 3000 --hostname localhost",
+    "dev": "next dev --port 3000 --hostname 0.0.0.0",
+    "dev:tutor-proxy": "next dev --port 3000 --hostname 0.0.0.0",
     "build": "next build",
     "postbuild": "node scripts/sync-auth-domains.mjs",
     "start": "next start",
     "lint": "eslint .",
-    "auth:sync-domains": "node scripts/sync-auth-domains.mjs"
+    "auth:sync-domains": "node scripts/sync-auth-domains.mjs",
+    "dev:new-dashboard": "TUTOR_DEV_URL=https://ai-ra-app.vercel.app next dev --port 3000 --hostname 0.0.0.0"
   },
   "dependencies": {
     "@heygen/liveavatar-web-sdk": "^0.0.18",
@@ -53,6 +54,7 @@
     "lucide-react": "^0.564.0",
     "next": "16.1.6",
     "next-themes": "^0.4.6",
+    "nodemailer": "^9.0.3",
     "react": "19.2.4",
     "react-day-picker": "9.13.2",
     "react-dom": "19.2.4",
@@ -69,6 +71,7 @@
     "@next/eslint-plugin-next": "^16.2.6",
     "@tailwindcss/postcss": "^4.2.0",
     "@types/node": "^22",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "eslint": "^9.39.4",

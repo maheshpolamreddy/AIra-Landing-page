@@ -2,6 +2,7 @@ import {
   GoogleAuthProvider,
   OAuthProvider,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -16,7 +17,50 @@ import { ensureAuthReady, getFirebaseAuth } from '@/lib/firebase/client'
 import { getFirebaseDb } from '@/lib/firebase/app'
 import { getAuthErrorCode, mapAuthError } from '@/lib/firebase/errors'
 import { normalizeAppRole, type AppRole } from '@/lib/auth-redirect'
+import { assertEmailQuality } from '@/lib/email-quality'
 import { clearRoleHint } from '@/lib/session-hints'
+
+const PROD_LANDING = 'https://aira-landing-page-elite.vercel.app'
+
+/** Password accounts must click the inbox link; OAuth providers already verified the mailbox. */
+export function needsEmailVerification(user: User | null | undefined): boolean {
+  if (!user || user.emailVerified) return false
+  const ids = user.providerData.map((p) => p.providerId)
+  if (ids.includes('password') || ids.length === 0) return true
+  return false
+}
+
+function verificationContinueUrl(): string {
+  const origin =
+    typeof window !== 'undefined' ? window.location.origin : PROD_LANDING
+  return `${origin}/login?verified=1`
+}
+
+export async function sendVerificationEmail(): Promise<void> {
+  const auth = await ensureAuthReady()
+  const user = auth.currentUser
+  if (!user) {
+    throw new Error('Please sign in to verify your email.')
+  }
+  if (user.emailVerified) return
+  try {
+    await sendEmailVerification(user, {
+      url: verificationContinueUrl(),
+      handleCodeInApp: false,
+    })
+  } catch (err) {
+    console.warn('[auth] send verification failed:', getAuthErrorCode(err) || 'unknown')
+    throw new Error(mapAuthError(err))
+  }
+}
+
+export async function reloadCurrentUser(): Promise<User | null> {
+  const auth = await ensureAuthReady()
+  const user = auth.currentUser
+  if (!user) return null
+  await user.reload()
+  return auth.currentUser
+}
 
 export type SignUpInput = {
   name: string
@@ -29,23 +73,31 @@ export type SignUpInput = {
 async function saveUserProfile(
   user: User,
   extra: { name: string; dateOfBirth?: string; provider: string; role?: AppRole },
+  options?: { preserveExistingRole?: boolean },
 ) {
   const db = getFirebaseDb()
-  const role = normalizeAppRole(extra.role)
-  await setDoc(
-    doc(db, 'users', user.uid),
-    {
-      uid: user.uid,
-      name: extra.name,
-      email: user.email,
-      dateOfBirth: extra.dateOfBirth ?? null,
-      role,
-      provider: extra.provider,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  )
+  const payload: Record<string, unknown> = {
+    uid: user.uid,
+    name: extra.name,
+    email: user.email,
+    dateOfBirth: extra.dateOfBirth ?? null,
+    provider: extra.provider,
+    updatedAt: serverTimestamp(),
+  }
+
+  if (options?.preserveExistingRole) {
+    const snap = await getDoc(doc(db, 'users', user.uid))
+    if (!snap.exists()) {
+      payload.role = normalizeAppRole(extra.role)
+      payload.createdAt = serverTimestamp()
+    }
+    // Existing docs keep their role — OAuth must not clobber teacher/admin → student.
+  } else {
+    payload.role = normalizeAppRole(extra.role)
+    payload.createdAt = serverTimestamp()
+  }
+
+  await setDoc(doc(db, 'users', user.uid), payload, { merge: true })
 }
 
 /** Read role from Firestore profile; defaults to student. */
@@ -96,7 +148,7 @@ async function upsertOAuthProfile(
     cred.user.email?.split('@')[0] ||
     'Student'
   try {
-    await saveUserProfile(cred.user, { name, provider })
+    await saveUserProfile(cred.user, { name, provider }, { preserveExistingRole: true })
   } catch (profileErr) {
     console.error('[auth] profile save failed', profileErr)
   }
@@ -124,11 +176,12 @@ async function signInWithProviderPopup(
 export async function signUpWithEmail(
   input: SignUpInput,
 ): Promise<UserCredential> {
+  const email = assertEmailQuality(input.email)
   const auth = await ensureAuthReady()
   try {
     const cred = await createUserWithEmailAndPassword(
       auth,
-      input.email.trim(),
+      email,
       input.password,
     )
     await updateProfile(cred.user, { displayName: input.name.trim() })
@@ -137,10 +190,22 @@ export async function signUpWithEmail(
         name: input.name.trim(),
         dateOfBirth: input.dateOfBirth,
         provider: 'password',
-        role: normalizeAppRole(input.role),
+        // Public signup cannot self-assign admin.
+        role: normalizeAppRole(input.role) === 'admin' ? 'student' : normalizeAppRole(input.role),
       })
     } catch (profileErr) {
       console.error('[auth] profile save failed', profileErr)
+    }
+    try {
+      await sendEmailVerification(cred.user, {
+        url: verificationContinueUrl(),
+        handleCodeInApp: false,
+      })
+    } catch (verifyErr) {
+      console.warn(
+        '[auth] send verification after signup failed:',
+        getAuthErrorCode(verifyErr) || 'unknown',
+      )
     }
     return cred
   } catch (err) {
@@ -153,9 +218,10 @@ export async function signInWithEmail(
   email: string,
   password: string,
 ): Promise<UserCredential> {
+  const normalized = assertEmailQuality(email)
   const auth = await ensureAuthReady()
   try {
-    return await signInWithEmailAndPassword(auth, email.trim(), password)
+    return await signInWithEmailAndPassword(auth, normalized, password)
   } catch (err) {
     console.warn('[auth] email sign-in failed:', getAuthErrorCode(err) || 'unknown')
     throw new Error(mapAuthError(err))
@@ -187,9 +253,10 @@ export async function signInWithApple(): Promise<UserCredential> {
 }
 
 export async function resetPassword(email: string): Promise<void> {
+  const normalized = assertEmailQuality(email)
   const auth = await ensureAuthReady()
   try {
-    await sendPasswordResetEmail(auth, email.trim())
+    await sendPasswordResetEmail(auth, normalized)
   } catch (err) {
     console.warn('[auth] reset password failed:', getAuthErrorCode(err) || 'unknown')
     throw new Error(mapAuthError(err))

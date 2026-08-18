@@ -39,6 +39,9 @@ export function mapAuthError(err: unknown, providerKey?: string): string {
       return 'Password should be at least 6 characters.'
     case 'auth/too-many-requests':
       return 'Too many attempts. Please wait a moment and try again.'
+    case 'auth/invalid-continue-uri':
+    case 'auth/unauthorized-continue-uri':
+      return 'Email verification could not be sent because this site is not authorized yet. Add the domain in Firebase Authentication → Settings → Authorized domains.'
     case 'auth/popup-closed-by-user':
     case 'auth/cancelled-popup-request':
       return 'Sign-in was cancelled. You can try again anytime.'

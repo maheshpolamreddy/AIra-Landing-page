@@ -75,6 +75,13 @@ export function redirectMatchesRole(
   return false
 }
 
+/** Landing page where password users wait until they click the verification link. */
+export function getVerifyEmailPath(redirect?: string | null): string {
+  const safe = sanitizeAppRedirect(redirect)
+  if (!safe) return '/verify-email'
+  return `/verify-email?redirect=${encodeURIComponent(safe)}`
+}
+
 /**
  * Prefer an explicit safe `redirect` only when it matches Firestore role.
  * Otherwise go straight to role home — skips teacher→student bounce delays.

@@ -12,6 +12,7 @@ import {
   authPrimaryBtnClassName,
 } from '@/components/auth-shell'
 import { resetPassword } from '@/lib/firebase/auth'
+import { checkEmailQuality } from '@/lib/email-quality'
 
 export default function ForgotPasswordPage() {
   const [mounted, setMounted] = useState(false)
@@ -28,9 +29,16 @@ export default function ForgotPasswordPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    const emailCheck = checkEmailQuality(email)
+    if (!emailCheck.ok) {
+      setError(emailCheck.error)
+      return
+    }
+
     setLoading(true)
     try {
-      await resetPassword(email)
+      await resetPassword(emailCheck.email)
       setSent(true)
     } catch (err) {
       setError(

@@ -14,14 +14,16 @@ import {
   authLabelClassName,
   authPrimaryBtnClassName,
 } from '@/components/auth-shell'
-import { resolveRoleForRedirect, signUpWithEmail } from '@/lib/firebase/auth'
+import { resolveRoleForRedirect, signUpWithEmail, needsEmailVerification } from '@/lib/firebase/auth'
 import { useAuth } from '@/components/auth-provider'
 import { readRoleHint, readStudentHomeHint, writeRoleHint } from '@/lib/session-hints'
 import {
+  getVerifyEmailPath,
   normalizeAppRole,
   resolvePostAuthPath,
   type AppRole,
 } from '@/lib/auth-redirect'
+import { checkEmailQuality } from '@/lib/email-quality'
 
 function SignupFallback() {
   return (
@@ -76,6 +78,10 @@ function SignupPageContent() {
   useEffect(() => {
     if (authLoading || !user || autoContinued.current || loading) return
     autoContinued.current = true
+    if (needsEmailVerification(user)) {
+      window.location.assign(getVerifyEmailPath(redirectParam))
+      return
+    }
     void goAfterAuth(user.uid)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user, loading])
@@ -93,16 +99,23 @@ function SignupPageContent() {
       return
     }
 
+    const emailCheck = checkEmailQuality(email)
+    if (!emailCheck.ok) {
+      setError(emailCheck.error)
+      return
+    }
+
     setLoading(true)
     try {
-      const cred = await signUpWithEmail({
+      await signUpWithEmail({
         name,
-        email,
+        email: emailCheck.email,
         password,
         dateOfBirth: dob || undefined,
         role,
       })
-      await goAfterAuth(cred.user.uid, role)
+      writeRoleHint(normalizeAppRole(role))
+      window.location.assign(getVerifyEmailPath(redirectParam))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create account.')
     } finally {
@@ -172,7 +185,6 @@ function SignupPageContent() {
           >
             <option value="student">Student</option>
             <option value="teacher">Teacher</option>
-            <option value="admin">Admin / Principal</option>
           </select>
         </div>
 

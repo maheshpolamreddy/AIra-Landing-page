@@ -13,10 +13,11 @@ import {
   authLabelClassName,
   authPrimaryBtnClassName,
 } from '@/components/auth-shell'
-import { logOut, resolveRoleForRedirect, signInWithEmail } from '@/lib/firebase/auth'
+import { logOut, resolveRoleForRedirect, signInWithEmail, needsEmailVerification, reloadCurrentUser } from '@/lib/firebase/auth'
 import { useAuth } from '@/components/auth-provider'
 import { LOGIN_INTENT_COPY, portalHrefForIntent } from '@/lib/site'
-import { resolvePostAuthPath } from '@/lib/auth-redirect'
+import { getVerifyEmailPath, resolvePostAuthPath } from '@/lib/auth-redirect'
+import { checkEmailQuality } from '@/lib/email-quality'
 import {
   clearRoleHint,
   readRoleHint,
@@ -101,7 +102,22 @@ function LoginPageContent() {
     if (cameFromSignOut) return
     if (authLoading || !user || autoContinued.current || loading) return
     autoContinued.current = true
-    void goAfterAuth(user.uid)
+    void (async () => {
+      let current = user
+      if (searchParams.get('verified') === '1') {
+        try {
+          const next = await reloadCurrentUser()
+          if (next) current = next
+        } catch {
+          /* continue with current user */
+        }
+      }
+      if (needsEmailVerification(current)) {
+        window.location.assign(getVerifyEmailPath(redirectParam))
+        return
+      }
+      await goAfterAuth(current.uid)
+    })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameFromSignOut, authLoading, user, loading])
 
@@ -129,9 +145,20 @@ function LoginPageContent() {
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    const emailCheck = checkEmailQuality(email)
+    if (!emailCheck.ok) {
+      setError(emailCheck.error)
+      return
+    }
+
     setLoading(true)
     try {
-      const cred = await signInWithEmail(email, password)
+      const cred = await signInWithEmail(emailCheck.email, password)
+      if (needsEmailVerification(cred.user)) {
+        window.location.assign(getVerifyEmailPath(redirectParam))
+        return
+      }
       await goAfterAuth(cred.user.uid)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed.')

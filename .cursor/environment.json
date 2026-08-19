@@ -1,0 +1,30 @@
+{
+  "name": "AIra Landing + Tutor",
+  "install": "bash scripts/cloud-agent-install.sh",
+  "start": "bash scripts/cloud-agent-start.sh",
+  "repositoryDependencies": [
+    "github.com/maheshpolamreddy/AIra---AI-tutor"
+  ],
+  "ports": [
+    {
+      "name": "Landing (Next.js)",
+      "port": 3000
+    },
+    {
+      "name": "Tutor (Vite)",
+      "port": 5173
+    }
+  ],
+  "terminals": [
+    {
+      "name": "landing-dev",
+      "command": "pnpm dev",
+      "description": "AIra Landing Page Next.js app on http://localhost:3000 (proxies tutor routes in development)."
+    },
+    {
+      "name": "tutor-dev",
+      "command": "cd \"$HOME/AIra-AI-tutor\" && npm run dev",
+      "description": "AIra AI Tutor Vite app on http://127.0.0.1:5173 (proxied through landing on :3000)."
+    }
+  ]
+}

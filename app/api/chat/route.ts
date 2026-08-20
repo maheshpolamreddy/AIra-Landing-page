@@ -40,13 +40,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { messages } = await req.json()
+    const { messages, language } = await req.json()
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
         { error: 'Invalid messages array provided.' },
         { status: 400 }
       )
     }
+
+    const langHint =
+      typeof language === 'string' && language.trim()
+        ? `\n\nRespond in the user's preferred language locale: ${language.trim()}. If the locale is English (en-IN / en), use clear Indian English.`
+        : ''
 
     // Helper to call Groq with a given model
     const callGroq = async (model: string) => {
@@ -59,7 +64,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           model,
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: SYSTEM_PROMPT + langHint },
             ...messages
           ],
           temperature: 0.7,
@@ -69,12 +74,12 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Try primary fast model first, fall back to a currently supported Groq model
-    let response = await callGroq('llama-3.1-8b-instant')
+    // Try primary fast model first, fall back to another currently supported Groq model
+    let response = await callGroq('openai/gpt-oss-20b')
 
     if (!response.ok) {
       console.warn('Primary model failed, trying fallback model...')
-      response = await callGroq('llama-3.3-70b-versatile')
+      response = await callGroq('groq/compound')
     }
 
     if (!response.ok) {

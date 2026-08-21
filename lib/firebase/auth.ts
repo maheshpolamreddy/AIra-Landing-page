@@ -2,6 +2,7 @@ import {
   GoogleAuthProvider,
   OAuthProvider,
   createUserWithEmailAndPassword,
+  getAdditionalUserInfo,
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
@@ -70,12 +71,43 @@ export type SignUpInput = {
   role?: AppRole
 }
 
+/** Best-effort branded welcome mail; never blocks signup/login. */
+async function requestWelcomeEmail(user: User, name?: string): Promise<void> {
+  try {
+    if (!user.email) return
+    const idToken = await user.getIdToken()
+    const displayName =
+      name?.trim() ||
+      user.displayName?.trim() ||
+      user.email.split('@')[0] ||
+      'there'
+
+    void fetch('/api/welcome', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: displayName }),
+      keepalive: true,
+    }).catch((err) => {
+      console.warn('[auth] welcome email request failed', err)
+    })
+  } catch (err) {
+    console.warn('[auth] welcome email request setup failed', err)
+  }
+}
+
 async function saveUserProfile(
   user: User,
   extra: { name: string; dateOfBirth?: string; provider: string; role?: AppRole },
   options?: { preserveExistingRole?: boolean },
 ) {
   const db = getFirebaseDb()
+  const ref = doc(db, 'users', user.uid)
+  const snap = await getDoc(ref)
+  const isNew = !snap.exists()
+
   const payload: Record<string, unknown> = {
     uid: user.uid,
     name: extra.name,
@@ -85,19 +117,20 @@ async function saveUserProfile(
     updatedAt: serverTimestamp(),
   }
 
+  if (isNew) {
+    payload.createdAt = serverTimestamp()
+  }
+
   if (options?.preserveExistingRole) {
-    const snap = await getDoc(doc(db, 'users', user.uid))
-    if (!snap.exists()) {
+    if (isNew) {
       payload.role = normalizeAppRole(extra.role)
-      payload.createdAt = serverTimestamp()
     }
     // Existing docs keep their role — OAuth must not clobber teacher/admin → student.
   } else {
     payload.role = normalizeAppRole(extra.role)
-    payload.createdAt = serverTimestamp()
   }
 
-  await setDoc(doc(db, 'users', user.uid), payload, { merge: true })
+  await setDoc(ref, payload, { merge: true })
 }
 
 /** Read role from Firestore profile; defaults to student. */
@@ -147,10 +180,14 @@ async function upsertOAuthProfile(
     cred.user.displayName?.trim() ||
     cred.user.email?.split('@')[0] ||
     'Student'
+  const isNewUser = getAdditionalUserInfo(cred)?.isNewUser === true
   try {
     await saveUserProfile(cred.user, { name, provider }, { preserveExistingRole: true })
   } catch (profileErr) {
     console.error('[auth] profile save failed', profileErr)
+  }
+  if (isNewUser) {
+    void requestWelcomeEmail(cred.user, name)
   }
   return cred
 }
@@ -207,6 +244,7 @@ export async function signUpWithEmail(
         getAuthErrorCode(verifyErr) || 'unknown',
       )
     }
+    void requestWelcomeEmail(cred.user, input.name.trim())
     return cred
   } catch (err) {
     console.warn('[auth] email signup failed:', getAuthErrorCode(err) || 'unknown')

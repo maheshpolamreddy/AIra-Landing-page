@@ -14,6 +14,18 @@ function requireEnv(name: string): string {
   return value
 }
 
+/** Strip accidental wrapping quotes from env values pasted from docs. */
+function cleanFromAddress(raw: string): string {
+  const trimmed = raw.trim()
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim()
+  }
+  return trimmed
+}
+
 function createTransport() {
   const host = process.env.SMTP_HOST?.trim() || 'smtp.gmail.com'
   const port = Number(process.env.SMTP_PORT?.trim() || '465')
@@ -34,9 +46,10 @@ export async function sendWelcomeEmail(input: SendWelcomeInput): Promise<void> {
     throw new Error('Invalid recipient email')
   }
 
-  const from =
+  const from = cleanFromAddress(
     process.env.SMTP_FROM?.trim() ||
-    `"AIra <${process.env.SMTP_USER?.trim() || 'airaaitutor@gmail.com'}>"`
+      `AIra <${process.env.SMTP_USER?.trim() || 'airaaitutor@gmail.com'}>`,
+  )
 
   const template = buildWelcomeEmail({ name: input.name })
   const transport = createTransport()

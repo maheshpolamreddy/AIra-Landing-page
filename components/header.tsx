@@ -37,7 +37,12 @@ export function Header() {
 
   const handleLogOut = async () => {
     setMobileOpen(false)
-    await logOut()
+    try {
+      await logOut()
+    } catch {
+      /* still send user to the landing page */
+    }
+    window.location.replace('/')
   }
 
   useEffect(() => {

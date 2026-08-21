@@ -72,7 +72,7 @@ export type SignUpInput = {
 }
 
 /** Best-effort branded welcome mail; never blocks signup/login. */
-async function requestWelcomeEmail(user: User, name?: string): Promise<void> {
+export async function requestWelcomeEmail(user: User, name?: string): Promise<void> {
   try {
     if (!user.email) return
     const idToken = await user.getIdToken()
@@ -186,6 +186,7 @@ async function upsertOAuthProfile(
   } catch (profileErr) {
     console.error('[auth] profile save failed', profileErr)
   }
+  // New accounts only — server also no-ops if welcomeEmailSent is already true.
   if (isNewUser) {
     void requestWelcomeEmail(cred.user, name)
   }
@@ -244,7 +245,7 @@ export async function signUpWithEmail(
         getAuthErrorCode(verifyErr) || 'unknown',
       )
     }
-    void requestWelcomeEmail(cred.user, input.name.trim())
+    // Welcome email is sent only after the user verifies their inbox.
     return cred
   } catch (err) {
     console.warn('[auth] email signup failed:', getAuthErrorCode(err) || 'unknown')

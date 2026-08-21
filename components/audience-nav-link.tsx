@@ -19,7 +19,8 @@ type AudienceNavLinkProps = {
 }
 
 /**
- * Schools: logged out → /login?intent=school · logged in → same-tab tutor home by Firestore role
+ * Schools: logged out → /login?intent=school
+ * Schools: logged in → wait for Firestore role, then role home (never interim mode-selection)
  * Professionals: always opens "Coming soon" popup (tracks not live yet)
  */
 export function AudienceNavLink({
@@ -30,14 +31,23 @@ export function AudienceNavLink({
 }: AudienceNavLinkProps) {
   const { user, loading } = useAuth()
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
-  const [portalHref, setPortalHref] = useState<string>(EXTERNAL.schools.href)
+  const [portalHref, setPortalHref] = useState<string | null>(null)
+  const [roleReady, setRoleReady] = useState(false)
   const config = EXTERNAL[audience]
 
   useEffect(() => {
-    if (audience !== 'schools' || !user) return
+    if (audience !== 'schools' || !user) {
+      setPortalHref(null)
+      setRoleReady(false)
+      return
+    }
     let cancelled = false
+    setRoleReady(false)
+    setPortalHref(null)
     void getUserAppRole(user.uid).then((role) => {
-      if (!cancelled) setPortalHref(homeForRole(role))
+      if (cancelled) return
+      setPortalHref(homeForRole(role))
+      setRoleReady(true)
     })
     return () => {
       cancelled = true
@@ -66,13 +76,24 @@ export function AudienceNavLink({
   }
 
   if (!loading && user) {
-    // Same-tab navigation so Vite/tutor assets load on this origin (no blank new-tab).
+    if (!roleReady || !portalHref) {
+      return (
+        <button
+          type="button"
+          disabled
+          aria-busy="true"
+          className={cn(className, 'cursor-wait opacity-70')}
+        >
+          {children}
+        </button>
+      )
+    }
+
     return (
       <a
         href={portalHref}
         onClick={(e) => {
           onNavigate?.()
-          // Force full navigation so the tutor SPA bootstraps via rewrites
           e.preventDefault()
           window.location.assign(portalHref)
         }}

@@ -13,7 +13,7 @@ import {
   authLabelClassName,
   authPrimaryBtnClassName,
 } from '@/components/auth-shell'
-import { logOut, resolveRoleForRedirect, signInWithEmail, needsEmailVerification, reloadCurrentUser } from '@/lib/firebase/auth'
+import { logOut, resolveRoleForRedirect, signInWithEmail, needsEmailVerification, reloadCurrentUser, requestWelcomeEmail } from '@/lib/firebase/auth'
 import { useAuth } from '@/components/auth-provider'
 import { LOGIN_INTENT_COPY, portalHrefForIntent } from '@/lib/site'
 import { getVerifyEmailPath, resolvePostAuthPath } from '@/lib/auth-redirect'
@@ -21,7 +21,6 @@ import { checkEmailQuality } from '@/lib/email-quality'
 import {
   clearRoleHint,
   readRoleHint,
-  readStudentHomeHint,
   writeRoleHint,
 } from '@/lib/session-hints'
 
@@ -47,6 +46,8 @@ function LoginPageContent() {
   const redirectParam = searchParams.get('redirect')
   // Set by the tutor when it sends the user here after a sign-out.
   const cameFromSignOut = searchParams.get('signedOut') === '1'
+  const signedOutGuard = useRef(cameFromSignOut)
+  if (cameFromSignOut) signedOutGuard.current = true
   const intentCopy =
     intent && LOGIN_INTENT_COPY[intent] ? LOGIN_INTENT_COPY[intent] : null
   const externalPortal = portalHrefForIntent(intent)
@@ -58,18 +59,22 @@ function LoginPageContent() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const goAfterAuth = async (uid: string) => {
+  const goAfterAuth = async (uid: string, opts?: { sendWelcome?: boolean; user?: typeof user }) => {
     if (externalPortal) {
       window.location.assign(externalPortal)
       return
     }
+    if (opts?.sendWelcome && opts.user) {
+      void requestWelcomeEmail(
+        opts.user,
+        opts.user.displayName?.trim() || opts.user.email?.split('@')[0],
+      )
+    }
     const role = await resolveRoleForRedirect(uid, readRoleHint())
     writeRoleHint(role)
-    // Role-matched path only — never send students through /teacher first
     const dest = resolvePostAuthPath({
       redirect: redirectParam,
       role,
-      studentHome: readStudentHomeHint(),
     })
     window.location.assign(dest)
   }
@@ -85,26 +90,33 @@ function LoginPageContent() {
    * page would then auto-continue and bounce the user straight back into the
    * app. Honour the explicit signal instead of trusting local auth state.
    */
-  const [signOutSettled, setSignOutSettled] = useState(!cameFromSignOut)
+  const [signOutSettled, setSignOutSettled] = useState(!signedOutGuard.current)
   useEffect(() => {
-    if (!cameFromSignOut) return
+    if (!signedOutGuard.current) return
     clearRoleHint()
     void logOut()
       .catch(() => {})
-      .finally(() => setSignOutSettled(true))
-  }, [cameFromSignOut])
+      .finally(() => {
+        setSignOutSettled(true)
+        // Stay on the sign-in form; drop redirect/signedOut noise from the URL.
+        if (typeof window !== 'undefined') {
+          window.history.replaceState(null, '', '/login')
+        }
+      })
+  }, [])
 
   // Auto-continue only when already signed in on arrival (not after form submit —
   // handleLogin already navigates, avoiding a double full-page load — and never
   // right after a sign-out, where the user asked for this form).
   const autoContinued = useRef(false)
   useEffect(() => {
-    if (cameFromSignOut) return
+    if (signedOutGuard.current) return
     if (authLoading || !user || autoContinued.current || loading) return
     autoContinued.current = true
     void (async () => {
       let current = user
-      if (searchParams.get('verified') === '1') {
+      const fromVerifyLink = searchParams.get('verified') === '1'
+      if (fromVerifyLink) {
         try {
           const next = await reloadCurrentUser()
           if (next) current = next
@@ -116,10 +128,14 @@ function LoginPageContent() {
         window.location.assign(getVerifyEmailPath(redirectParam))
         return
       }
-      await goAfterAuth(current.uid)
+      await goAfterAuth(current.uid, {
+        // Password users land here after clicking the Firebase verify link.
+        sendWelcome: fromVerifyLink && current.providerData.some((p) => p.providerId === 'password'),
+        user: current,
+      })
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameFromSignOut, authLoading, user, loading])
+  }, [authLoading, user, loading])
 
   /**
    * Warm the destination document while the user is still typing, so the
@@ -132,7 +148,6 @@ function LoginPageContent() {
     const href = resolvePostAuthPath({
       redirect: redirectParam,
       role,
-      studentHome: readStudentHomeHint(),
     })
     const link = document.createElement('link')
     link.rel = 'prefetch'
@@ -170,7 +185,7 @@ function LoginPageContent() {
   if (!mounted || authLoading || !signOutSettled) return <LoginFallback />
   // After a sign-out we always show the form, even if clearing the session
   // failed — an endless spinner would be worse than a stale auth flag.
-  if (user && !cameFromSignOut) return <LoginFallback />
+  if (user && !signedOutGuard.current) return <LoginFallback />
 
   return (
     <AuthShell
@@ -278,11 +293,13 @@ function LoginPageContent() {
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{' '}
         <Link
-          href={
-            redirectParam
-              ? `/signup?redirect=${encodeURIComponent(redirectParam)}`
-              : '/signup'
-          }
+          href={(() => {
+            const params = new URLSearchParams()
+            if (redirectParam) params.set('redirect', redirectParam)
+            if (intent) params.set('intent', intent)
+            const q = params.toString()
+            return q ? `/signup?${q}` : '/signup'
+          })()}
           className="font-medium text-primary underline-offset-4 hover:underline"
         >
           Create one now

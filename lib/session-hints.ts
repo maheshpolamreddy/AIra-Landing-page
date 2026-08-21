@@ -68,10 +68,10 @@ export function writeStudentHomeHint(path: string): void {
 }
 
 /**
- * Called on sign-out. The role hint must go so the next person to sign in on
- * this device is not routed as the previous one; the mode preference is a
- * harmless per-device setting and is kept.
+ * Called on sign-out. Drop role and mode hints so the next person on this
+ * device is not routed as the previous user.
  */
 export function clearRoleHint(): void {
   remove(ROLE_KEY)
+  remove(STUDENT_HOME_KEY)
 }

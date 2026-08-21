@@ -80,7 +80,7 @@ export function buildWelcomeEmail(input: WelcomeTemplateInput): WelcomeTemplate 
   const safeName = escapeHtml(displayName)
   const logoUrl = `${origin}/aira-mark.png`
   const iconUrl = `${origin}/brand/aira-icon.png`
-  const ctaUrl = `${origin}/login`
+  const ctaUrl = `${origin}/student/mode-selection`
   const year = new Date().getFullYear()
   const brand = EMAIL_BRAND_NAME
 

@@ -42,8 +42,8 @@ export const EXTERNAL = {
     label: 'For Schools',
     /** Role home is resolved after login — do not force /teacher (causes student bounce). */
     loginHref: '/login?intent=school',
-    /** Fallback while role loads; AudienceNavLink replaces with real role home */
-    href: '/student/mode-selection',
+    /** Safe fallback while role loads — never dump into student mode-selection. */
+    href: '/login?intent=school',
   },
   professionals: {
     label: 'For Professionals',

@@ -17,10 +17,11 @@ import {
   logOut,
   needsEmailVerification,
   reloadCurrentUser,
+  requestWelcomeEmail,
   resolveRoleForRedirect,
   sendVerificationEmail,
 } from '@/lib/firebase/auth'
-import { readRoleHint, readStudentHomeHint, writeRoleHint } from '@/lib/session-hints'
+import { readRoleHint, writeRoleHint } from '@/lib/session-hints'
 
 function VerifyFallback() {
   return (
@@ -48,16 +49,26 @@ function VerifyEmailContent() {
   const [info, setInfo] = useState<string | null>(null)
   const continued = useRef(false)
 
-  const goAfterAuth = useCallback(async (uid: string) => {
+  const goAfterAuth = useCallback(async (uid: string, verifiedUser?: typeof user) => {
+    const current = verifiedUser ?? user
+    if (
+      current &&
+      current.providerData.some((p) => p.providerId === 'password')
+    ) {
+      // New password accounts: welcome only after verification succeeds.
+      void requestWelcomeEmail(
+        current,
+        current.displayName?.trim() || current.email?.split('@')[0],
+      )
+    }
     const role = normalizeAppRole(await resolveRoleForRedirect(uid, readRoleHint()))
     writeRoleHint(role)
     const dest = resolvePostAuthPath({
       redirect: redirectParam,
       role,
-      studentHome: readStudentHomeHint(),
     })
     window.location.assign(dest)
-  }, [redirectParam])
+  }, [redirectParam, user])
 
   useEffect(() => {
     const timer = setTimeout(() => setMounted(true), 0)
@@ -87,7 +98,7 @@ function VerifyEmailContent() {
           const next = await reloadCurrentUser()
           if (next && !needsEmailVerification(next) && !continued.current) {
             continued.current = true
-            await goAfterAuth(next.uid)
+            await goAfterAuth(next.uid, next)
           }
         } catch {
           /* keep waiting */
@@ -119,7 +130,7 @@ function VerifyEmailContent() {
       const next = await reloadCurrentUser()
       if (next && !needsEmailVerification(next)) {
         continued.current = true
-        await goAfterAuth(next.uid)
+        await goAfterAuth(next.uid, next)
         return
       }
       setError('Email is not verified yet. Open the link we sent, then try again.')

@@ -19,7 +19,7 @@ type AuthEntryLinkProps = {
 
 /**
  * Logged out → Next Link to /login or /signup.
- * Logged in → same-tab full navigation to Firestore role home (tutor SPA).
+ * Logged in → wait for Firestore role, then same-tab navigation to role home.
  */
 export function AuthEntryLink({
   href,
@@ -29,13 +29,22 @@ export function AuthEntryLink({
   forceAssign = false,
 }: AuthEntryLinkProps) {
   const { user, loading } = useAuth()
-  const [portalHref, setPortalHref] = useState('/student/mode-selection')
+  const [portalHref, setPortalHref] = useState<string | null>(null)
+  const [roleReady, setRoleReady] = useState(false)
 
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      setPortalHref(null)
+      setRoleReady(false)
+      return
+    }
     let cancelled = false
+    setRoleReady(false)
+    setPortalHref(null)
     void getUserAppRole(user.uid).then((role) => {
-      if (!cancelled) setPortalHref(homeForRole(role))
+      if (cancelled) return
+      setPortalHref(homeForRole(role))
+      setRoleReady(true)
     })
     return () => {
       cancelled = true
@@ -43,6 +52,19 @@ export function AuthEntryLink({
   }, [user])
 
   if (!loading && user) {
+    if (!roleReady || !portalHref) {
+      return (
+        <button
+          type="button"
+          disabled
+          aria-busy="true"
+          className={cn(className, 'cursor-wait opacity-70')}
+        >
+          {children}
+        </button>
+      )
+    }
+
     return (
       <a
         href={portalHref}

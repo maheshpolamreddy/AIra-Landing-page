@@ -83,21 +83,29 @@ export function getVerifyEmailPath(redirect?: string | null): string {
 }
 
 /**
- * Prefer an explicit safe `redirect` only when it matches Firestore role.
- * Otherwise go straight to role home — skips teacher→student bounce delays.
+ * Canonical destination right after authentication completes.
+ * Students always land on Mode Selection (ignore remembered mode hints).
+ * Teachers/admins keep their role dashboards.
+ */
+export function getPostAuthDestination(role: AppRole): string {
+  return ROLE_HOME[role]
+}
+
+/**
+ * Prefer an explicit safe `redirect` only when it matches Firestore role
+ * AND (for students) is not a deep-link that skips Mode Selection.
+ * Spec: every successful student auth ends at Mode Selection.
  */
 export function resolvePostAuthPath(options: {
   redirect?: string | null
   role: AppRole
   studentHome?: string | null
 }): string {
-  if (redirectMatchesRole(options.redirect, options.role)) {
-    const safe = sanitizeAppRedirect(options.redirect)!
-    // The mode picker is the generic student entry point, so treat it as "no
-    // preference" and let a remembered mode win instead.
-    if (!(options.role === 'student' && safe === ROLE_HOME.student)) {
-      return safe
-    }
+  if (options.role === 'student') {
+    return ROLE_HOME.student
   }
-  return homeForRole(options.role, options.studentHome)
+  if (redirectMatchesRole(options.redirect, options.role)) {
+    return sanitizeAppRedirect(options.redirect)!
+  }
+  return ROLE_HOME[options.role]
 }

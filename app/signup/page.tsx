@@ -16,7 +16,7 @@ import {
 } from '@/components/auth-shell'
 import { resolveRoleForRedirect, signUpWithEmail, needsEmailVerification } from '@/lib/firebase/auth'
 import { useAuth } from '@/components/auth-provider'
-import { readRoleHint, readStudentHomeHint, writeRoleHint } from '@/lib/session-hints'
+import { readRoleHint, writeRoleHint } from '@/lib/session-hints'
 import {
   getVerifyEmailPath,
   normalizeAppRole,
@@ -64,7 +64,6 @@ function SignupPageContent() {
     const dest = resolvePostAuthPath({
       redirect: redirectParam,
       role: resolved,
-      studentHome: readStudentHomeHint(),
     })
     window.location.assign(dest)
   }

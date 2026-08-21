@@ -13,6 +13,9 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 const PROJECT_ID =
   process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() || 'aira-landingpage'
 
+/** Ignore stale claims older than this so failed sends can retry. */
+const CLAIM_TTL_MS = 5 * 60 * 1000
+
 function loadServiceAccount(): ServiceAccount | undefined {
   const inline = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
   if (inline) {
@@ -67,6 +70,46 @@ export async function getUserWelcomeState(uid: string): Promise<{
   }
 }
 
+export type WelcomeClaimResult =
+  | { status: 'already_sent'; name: string | null }
+  | { status: 'claimed'; name: string | null }
+  | { status: 'in_flight'; name: string | null }
+
+/**
+ * Claim the right to send welcome mail. Never sets welcomeEmailSent here —
+ * that happens only after SMTP succeeds.
+ */
+export async function claimWelcomeEmailSend(uid: string): Promise<WelcomeClaimResult> {
+  const ref = getFirestore(getAdminApp()).collection('users').doc(uid)
+  return getFirestore(getAdminApp()).runTransaction(async (tx) => {
+    const snap = await tx.get(ref)
+    const data = snap.data() ?? {}
+    const name = typeof data.name === 'string' ? data.name : null
+
+    if (data.welcomeEmailSent === true) {
+      return { status: 'already_sent', name }
+    }
+
+    const claimedAt = data.welcomeEmailClaimedAt
+    if (claimedAt && typeof claimedAt.toMillis === 'function') {
+      const age = Date.now() - claimedAt.toMillis()
+      if (age >= 0 && age < CLAIM_TTL_MS) {
+        return { status: 'in_flight', name }
+      }
+    }
+
+    tx.set(
+      ref,
+      {
+        welcomeEmailClaimedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    )
+    return { status: 'claimed', name }
+  })
+}
+
 export async function markWelcomeEmailSent(uid: string): Promise<void> {
   await getFirestore(getAdminApp())
     .collection('users')
@@ -75,6 +118,21 @@ export async function markWelcomeEmailSent(uid: string): Promise<void> {
       {
         welcomeEmailSent: true,
         welcomeEmailSentAt: FieldValue.serverTimestamp(),
+        welcomeEmailClaimedAt: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    )
+}
+
+/** Clear claim after SMTP failure so a later login can retry. */
+export async function clearWelcomeEmailClaim(uid: string): Promise<void> {
+  await getFirestore(getAdminApp())
+    .collection('users')
+    .doc(uid)
+    .set(
+      {
+        welcomeEmailClaimedAt: FieldValue.delete(),
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true },

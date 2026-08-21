@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState, type CSSProperties } from 'react'
+import { useEffect, useId, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import {
   ArrowRight,
@@ -19,6 +19,8 @@ import { EXTERNAL } from '@/lib/site'
 import { useAuth } from '@/components/auth-provider'
 import { CoursePattern } from '@/components/course-pattern'
 import { WaitlistModal } from '@/components/waitlist-modal'
+import { getUserAppRole } from '@/lib/firebase/auth'
+import { homeForRole } from '@/lib/auth-redirect'
 import type { LearningCourse, MetricKind } from '@/lib/learning-courses'
 
 const METRIC_ICONS: Record<MetricKind, LucideIcon> = {
@@ -68,6 +70,7 @@ export function LearningCourseCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   const [waitlistOpen, setWaitlistOpen] = useState(false)
+  const [schoolsHome, setSchoolsHome] = useState<string | null>(null)
   const { user, loading: authLoading } = useAuth()
   const topicsId = useId()
   const patternUid = useId().replace(/:/g, '')
@@ -75,14 +78,35 @@ export function LearningCourseCard({
   const { accent } = course
   const portal =
     course.tone === 'professional' ? EXTERNAL.professionals : EXTERNAL.schools
+
+  useEffect(() => {
+    if (course.tone === 'professional' || !user) {
+      setSchoolsHome(null)
+      return
+    }
+    let cancelled = false
+    void getUserAppRole(user.uid).then((role) => {
+      if (!cancelled) setSchoolsHome(homeForRole(role))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [course.tone, user])
+
   const exploreHref =
-    !authLoading && user ? portal.href : portal.loginHref
+    course.tone === 'professional'
+      ? !authLoading && user
+        ? portal.href
+        : portal.loginHref
+      : !authLoading && user
+        ? schoolsHome ?? portal.loginHref
+        : portal.loginHref
   // Professionals stay cross-origin; school tools are same-origin tutor (full navigation required).
   const exploreOpensExternal = Boolean(
     !authLoading && user && course.tone === 'professional',
   )
   const exploreIsTutorPortal = Boolean(
-    !authLoading && user && course.tone !== 'professional',
+    !authLoading && user && course.tone !== 'professional' && schoolsHome,
   )
 
   return (

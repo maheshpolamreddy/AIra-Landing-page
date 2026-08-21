@@ -25,12 +25,12 @@ Open **http://localhost:3000** only. Sign in at `/login`, then you should land o
 - Do **not** rewrite `/api/*` to the tutor SPA in `next.config.mjs` / landing `vercel.json`.
 - Production tutor host (`ai-ra-app.vercel.app`) serves its own `/api/tts` + `/api/waitlist` serverless functions.
 
-## Welcome email (first signup only)
-Branded “Welcome to AIra” mail is sent from landing `/api/welcome` after:
-- email `signUpWithEmail`, or
-- first OAuth sign-in (`getAdditionalUserInfo(cred).isNewUser`)
+## Welcome email (new accounts only)
+Branded “Welcome to AIra” mail is sent from landing `/api/welcome` **once per new account**:
+- New OAuth (Google / Apple / Microsoft): when `isNewUser === true`
+- New email/password: **after** email verification succeeds (not at signup)
 
-Returning logins are skipped via Firestore `users/{uid}.welcomeEmailSent`.
+Returning logins never request welcome. Firestore `welcomeEmailSent` + claim-before-send make sends idempotent.
 
 ### Required env (`.env.local` + Vercel `aira-landing-page-elite`)
 ```
@@ -41,12 +41,15 @@ SMTP_PASS=<Google App Password>
 SMTP_FROM="AIra <airaaitutor@gmail.com>"
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 ```
-Use a Gmail **App Password** (not the normal account password). Without these, signup still works; welcome mail returns 502 and is logged. Email copy always spells the brand as **AIra** (ASCII) so inboxes do not show “Aria”.
+Use a Gmail **App Password** (not the normal account password). Without these, signup still works; welcome mail returns 502 and is logged. Email copy always spells the brand as **AIra** (ASCII).
 
-## Post-login homes (Firestore `users/{uid}.role`)
-- student → `/student/mode-selection`
+## Post-auth navigation
+- student → always `/student/mode-selection` (Mode Selection)
 - teacher → `/teacher/dashboard`
 - admin → `/admin/dashboard`
+
+## Logout
+Logout from tutor or landing header clears the session and navigates to the **Landing Page** (`/`), never `/login`.
 
 ## Demo roles
 `/dev/demo-roles` — DEV or authenticated admin only. Not a public login.

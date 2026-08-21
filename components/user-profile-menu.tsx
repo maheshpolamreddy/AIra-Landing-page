@@ -47,7 +47,8 @@ export function UserProfileMenu({
   compact = false,
 }: UserProfileMenuProps) {
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
-  const [schoolsHref, setSchoolsHref] = useState<string>(EXTERNAL.schools.href)
+  const [schoolsHref, setSchoolsHref] = useState<string | null>(null)
+  const [roleReady, setRoleReady] = useState(false)
   const name = displayNameFromUser(user)
   const email = user.email ?? ''
   const photoURL = user.photoURL ?? undefined
@@ -55,8 +56,12 @@ export function UserProfileMenu({
 
   useEffect(() => {
     let cancelled = false
+    setRoleReady(false)
+    setSchoolsHref(null)
     void getUserAppRole(user.uid).then((role) => {
-      if (!cancelled) setSchoolsHref(homeForRole(role))
+      if (cancelled) return
+      setSchoolsHref(homeForRole(role))
+      setRoleReady(true)
     })
     return () => {
       cancelled = true
@@ -122,8 +127,10 @@ export function UserProfileMenu({
 
         <DropdownMenuItem
           className="cursor-pointer"
+          disabled={!roleReady || !schoolsHref}
           onSelect={(e) => {
             e.preventDefault()
+            if (!schoolsHref) return
             window.location.assign(schoolsHref)
           }}
         >

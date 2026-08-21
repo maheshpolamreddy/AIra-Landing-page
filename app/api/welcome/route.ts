@@ -1,6 +1,7 @@
 import { sendWelcomeEmail } from '@/lib/email/send-welcome'
 import {
-  getUserWelcomeState,
+  claimWelcomeEmailSend,
+  clearWelcomeEmailClaim,
   markWelcomeEmailSent,
   verifyIdToken,
 } from '@/lib/firebase/admin'
@@ -40,19 +41,35 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: 'Token has no email' }, { status: 400 })
   }
 
+  let claim: Awaited<ReturnType<typeof claimWelcomeEmailSend>>
   try {
-    const state = await getUserWelcomeState(decoded.uid)
-    if (state.welcomeEmailSent) {
-      return Response.json({ ok: true, skipped: true })
-    }
+    claim = await claimWelcomeEmailSend(decoded.uid)
+  } catch (err) {
+    console.error('[welcome] claim failed', {
+      uid: decoded.uid,
+      error: err instanceof Error ? err.message : 'unknown',
+    })
+    return Response.json(
+      { ok: false, error: 'Unable to claim welcome email' },
+      { status: 502 },
+    )
+  }
 
-    const name =
-      (typeof body.name === 'string' && body.name.trim()) ||
-      state.name ||
-      decoded.name ||
-      email.split('@')[0] ||
-      'there'
+  if (claim.status === 'already_sent') {
+    return Response.json({ ok: true, skipped: true })
+  }
+  if (claim.status === 'in_flight') {
+    return Response.json({ ok: true, skipped: true, reason: 'in_flight' })
+  }
 
+  const name =
+    (typeof body.name === 'string' && body.name.trim()) ||
+    claim.name ||
+    decoded.name ||
+    email.split('@')[0] ||
+    'there'
+
+  try {
     await sendWelcomeEmail({ to: email, name })
     await markWelcomeEmailSent(decoded.uid)
 
@@ -63,11 +80,18 @@ export async function POST(request: Request) {
 
     return Response.json({ ok: true, sent: true })
   } catch (err) {
+    try {
+      await clearWelcomeEmailClaim(decoded.uid)
+    } catch (clearErr) {
+      console.warn(
+        '[welcome] clear claim failed',
+        clearErr instanceof Error ? clearErr.message : 'unknown',
+      )
+    }
     console.error('[welcome] failed', {
       uid: decoded.uid,
       error: err instanceof Error ? err.message : 'unknown',
     })
-    // Do not fail signup UX — client treats this as best-effort.
     return Response.json(
       { ok: false, error: 'Unable to send welcome email' },
       { status: 502 },

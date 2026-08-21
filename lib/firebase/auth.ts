@@ -71,7 +71,10 @@ export type SignUpInput = {
   role?: AppRole
 }
 
-/** Best-effort branded welcome mail; never blocks signup/login. */
+/**
+ * Best-effort branded welcome mail. Awaits claim/queue (not SMTP) so redirects
+ * do not abort the request; failures never throw to callers.
+ */
 export async function requestWelcomeEmail(user: User, name?: string): Promise<void> {
   try {
     if (!user.email) return
@@ -82,19 +85,31 @@ export async function requestWelcomeEmail(user: User, name?: string): Promise<vo
       user.email.split('@')[0] ||
       'there'
 
-    void fetch('/api/welcome', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${idToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ name: displayName }),
-      keepalive: true,
-    }).catch((err) => {
-      console.warn('[auth] welcome email request failed', err)
-    })
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 15_000)
+    try {
+      const res = await fetch('/api/welcome', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: displayName }),
+        signal: controller.signal,
+        keepalive: true,
+      })
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '')
+        console.warn('[auth] welcome email HTTP', res.status, detail.slice(0, 120))
+      }
+    } finally {
+      clearTimeout(timer)
+    }
   } catch (err) {
-    console.warn('[auth] welcome email request setup failed', err)
+    console.warn(
+      '[auth] welcome email request failed',
+      err instanceof Error ? err.message : 'unknown',
+    )
   }
 }
 
@@ -102,11 +117,12 @@ async function saveUserProfile(
   user: User,
   extra: { name: string; dateOfBirth?: string; provider: string; role?: AppRole },
   options?: { preserveExistingRole?: boolean },
-) {
+): Promise<{ isNew: boolean; welcomeEmailPending: boolean; welcomeEmailSent: boolean }> {
   const db = getFirebaseDb()
   const ref = doc(db, 'users', user.uid)
   const snap = await getDoc(ref)
   const isNew = !snap.exists()
+  const existing = snap.data()
 
   const payload: Record<string, unknown> = {
     uid: user.uid,
@@ -119,6 +135,8 @@ async function saveUserProfile(
 
   if (isNew) {
     payload.createdAt = serverTimestamp()
+    // Lets welcome mail retry after SMTP failures (isNewUser is true only once).
+    payload.welcomeEmailPending = true
   }
 
   if (options?.preserveExistingRole) {
@@ -131,6 +149,29 @@ async function saveUserProfile(
   }
 
   await setDoc(ref, payload, { merge: true })
+
+  return {
+    isNew,
+    welcomeEmailPending: isNew
+      ? true
+      : existing?.welcomeEmailPending === true,
+    welcomeEmailSent: existing?.welcomeEmailSent === true,
+  }
+}
+
+/** True when this account still needs a successful welcome send. */
+export async function shouldRequestWelcomeEmail(user: User): Promise<boolean> {
+  if (!user.email) return false
+  try {
+    const snap = await getDoc(doc(getFirebaseDb(), 'users', user.uid))
+    const data = snap.data()
+    if (!data) return false
+    if (data.welcomeEmailSent === true) return false
+    return data.welcomeEmailPending === true
+  } catch (err) {
+    console.warn('[auth] shouldRequestWelcomeEmail failed', err)
+    return false
+  }
 }
 
 /** Read role from Firestore profile; defaults to student. */
@@ -181,14 +222,22 @@ async function upsertOAuthProfile(
     cred.user.email?.split('@')[0] ||
     'Student'
   const isNewUser = getAdditionalUserInfo(cred)?.isNewUser === true
+  let shouldWelcome = isNewUser
   try {
-    await saveUserProfile(cred.user, { name, provider }, { preserveExistingRole: true })
+    const profile = await saveUserProfile(
+      cred.user,
+      { name, provider },
+      { preserveExistingRole: true },
+    )
+    // Retry until sent — isNewUser is only true on the first OAuth create.
+    shouldWelcome =
+      isNewUser ||
+      (profile.welcomeEmailPending && !profile.welcomeEmailSent)
   } catch (profileErr) {
     console.error('[auth] profile save failed', profileErr)
   }
-  // New accounts only — server also no-ops if welcomeEmailSent is already true.
-  if (isNewUser) {
-    void requestWelcomeEmail(cred.user, name)
+  if (shouldWelcome) {
+    await requestWelcomeEmail(cred.user, name)
   }
   return cred
 }
@@ -231,6 +280,7 @@ export async function signUpWithEmail(
         // Public signup cannot self-assign admin.
         role: normalizeAppRole(input.role) === 'admin' ? 'student' : normalizeAppRole(input.role),
       })
+      // welcomeEmailPending is set inside saveUserProfile for new docs.
     } catch (profileErr) {
       console.error('[auth] profile save failed', profileErr)
     }

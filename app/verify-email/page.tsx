@@ -56,7 +56,7 @@ function VerifyEmailContent() {
       current.providerData.some((p) => p.providerId === 'password')
     ) {
       // New password accounts: welcome only after verification succeeds.
-      void requestWelcomeEmail(
+      await requestWelcomeEmail(
         current,
         current.displayName?.trim() || current.email?.split('@')[0],
       )

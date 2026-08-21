@@ -26,18 +26,24 @@ function cleanFromAddress(raw: string): string {
   return trimmed
 }
 
-function createTransport() {
+function createTransport(port: number) {
   const host = process.env.SMTP_HOST?.trim() || 'smtp.gmail.com'
-  const port = Number(process.env.SMTP_PORT?.trim() || '465')
   const user = requireEnv('SMTP_USER')
   const pass = requireEnv('SMTP_PASS')
 
   return nodemailer.createTransport({
     host,
     port,
+    // 465 = implicit TLS; 587 = STARTTLS (often more reliable on serverless).
     secure: port === 465,
+    requireTLS: port === 587,
     auth: { user, pass },
-  })
+    connectionTimeout: 12_000,
+    greetingTimeout: 12_000,
+    socketTimeout: 20_000,
+    // Prefer IPv4 — some hosts hang resolving IPv6 first.
+    family: 4,
+  } as nodemailer.TransportOptions)
 }
 
 export async function sendWelcomeEmail(input: SendWelcomeInput): Promise<void> {
@@ -52,13 +58,32 @@ export async function sendWelcomeEmail(input: SendWelcomeInput): Promise<void> {
   )
 
   const template = buildWelcomeEmail({ name: input.name })
-  const transport = createTransport()
+  const configuredPort = Number(process.env.SMTP_PORT?.trim() || '465')
+  // Try configured port first, then the alternate Gmail port if it fails to connect.
+  const ports =
+    configuredPort === 587 ? [587, 465] : configuredPort === 465 ? [465, 587] : [configuredPort, 587, 465]
 
-  await transport.sendMail({
-    from,
-    to,
-    subject: template.subject,
-    text: template.text,
-    html: template.html,
-  })
+  let lastError: unknown
+  for (const port of ports) {
+    try {
+      const transport = createTransport(port)
+      await transport.sendMail({
+        from,
+        to,
+        subject: template.subject,
+        text: template.text,
+        html: template.html,
+      })
+      return
+    } catch (err) {
+      lastError = err
+      console.warn(
+        '[email] SMTP send failed on port',
+        port,
+        err instanceof Error ? err.message : 'unknown',
+      )
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('SMTP send failed')
 }

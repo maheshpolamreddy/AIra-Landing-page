@@ -39,9 +39,12 @@ SMTP_PORT=465
 SMTP_USER=airaaitutor@gmail.com
 SMTP_PASS=<Google App Password>
 SMTP_FROM="AIra <airaaitutor@gmail.com>"
+```
+Optional but recommended for domain sync / Admin SDK:
+```
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 ```
-Use a Gmail **App Password** (not the normal account password). Without these, signup still works; welcome mail returns 502 and is logged. Email copy always spells the brand as **AIra** (ASCII).
+Without SMTP, signup still works; welcome mail fails and is logged. Without a service account, `/api/welcome` still works via Firebase/Firestore REST + the caller's ID token (needs `NEXT_PUBLIC_FIREBASE_*` at build time). Email copy always spells the brand as **AIra** (ASCII).
 
 ## Post-auth navigation
 - student → always `/student/mode-selection` (Mode Selection)

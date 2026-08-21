@@ -13,7 +13,7 @@ import {
   authLabelClassName,
   authPrimaryBtnClassName,
 } from '@/components/auth-shell'
-import { logOut, resolveRoleForRedirect, signInWithEmail, needsEmailVerification, reloadCurrentUser, requestWelcomeEmail } from '@/lib/firebase/auth'
+import { logOut, resolveRoleForRedirect, signInWithEmail, needsEmailVerification, reloadCurrentUser, requestWelcomeEmail, shouldRequestWelcomeEmail } from '@/lib/firebase/auth'
 import { useAuth } from '@/components/auth-provider'
 import { LOGIN_INTENT_COPY, portalHrefForIntent } from '@/lib/site'
 import { getVerifyEmailPath, resolvePostAuthPath } from '@/lib/auth-redirect'
@@ -65,7 +65,7 @@ function LoginPageContent() {
       return
     }
     if (opts?.sendWelcome && opts.user) {
-      void requestWelcomeEmail(
+      await requestWelcomeEmail(
         opts.user,
         opts.user.displayName?.trim() || opts.user.email?.split('@')[0],
       )
@@ -174,7 +174,11 @@ function LoginPageContent() {
         window.location.assign(getVerifyEmailPath(redirectParam))
         return
       }
-      await goAfterAuth(cred.user.uid)
+      const retryWelcome = await shouldRequestWelcomeEmail(cred.user)
+      await goAfterAuth(cred.user.uid, {
+        sendWelcome: retryWelcome,
+        user: cred.user,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed.')
     } finally {

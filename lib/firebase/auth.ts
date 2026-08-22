@@ -37,6 +37,64 @@ function verificationContinueUrl(): string {
   return `${origin}/login?verified=1`
 }
 
+/** Branded verification via Resend; falls back to Firebase default if API unavailable. */
+async function requestVerificationEmail(user: User, name?: string): Promise<void> {
+  const displayName =
+    name?.trim() ||
+    user.displayName?.trim() ||
+    user.email?.split('@')[0] ||
+    'there'
+
+  try {
+    const idToken = await user.getIdToken()
+    const res = await fetch('/api/auth/send-verification', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: displayName }),
+    })
+    const payload = (await res.json().catch(() => ({}))) as {
+      ok?: boolean
+      sent?: boolean
+      code?: string
+      error?: string
+      retryAfterSec?: number
+    }
+
+    if (res.ok && payload.sent) {
+      console.info('[auth] branded verification email sent')
+      return
+    }
+
+    if (res.status === 429) {
+      throw new Error(
+        `Please wait ${payload.retryAfterSec ?? 60} seconds before requesting another email.`,
+      )
+    }
+
+    if (res.status === 503) {
+      console.warn('[auth] branded verification unavailable; using Firebase default')
+      await sendEmailVerification(user, {
+        url: verificationContinueUrl(),
+        handleCodeInApp: false,
+      })
+      return
+    }
+
+    console.warn('[auth] verification API failed', res.status, payload.code || payload.error)
+    throw new Error(payload.error || 'Could not send verification email.')
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('wait')) throw err
+    console.warn('[auth] verification request failed; trying Firebase default', err)
+    await sendEmailVerification(user, {
+      url: verificationContinueUrl(),
+      handleCodeInApp: false,
+    })
+  }
+}
+
 export async function sendVerificationEmail(): Promise<void> {
   const auth = await ensureAuthReady()
   const user = auth.currentUser
@@ -45,13 +103,13 @@ export async function sendVerificationEmail(): Promise<void> {
   }
   if (user.emailVerified) return
   try {
-    await sendEmailVerification(user, {
-      url: verificationContinueUrl(),
-      handleCodeInApp: false,
-    })
+    await requestVerificationEmail(
+      user,
+      user.displayName?.trim() || user.email?.split('@')[0],
+    )
   } catch (err) {
     console.warn('[auth] send verification failed:', getAuthErrorCode(err) || 'unknown')
-    throw new Error(mapAuthError(err))
+    throw err instanceof Error ? err : new Error(mapAuthError(err))
   }
 }
 
@@ -319,10 +377,7 @@ export async function signUpWithEmail(
       console.error('[auth] profile save failed', profileErr)
     }
     try {
-      await sendEmailVerification(cred.user, {
-        url: verificationContinueUrl(),
-        handleCodeInApp: false,
-      })
+      await requestVerificationEmail(cred.user, input.name.trim())
     } catch (verifyErr) {
       console.warn(
         '[auth] send verification after signup failed:',

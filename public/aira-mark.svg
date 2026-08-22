@@ -1,68 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none" role="img" aria-label="Aira">
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    @media (prefers-color-scheme: light) {
+      .background { fill: black; }
+      .foreground { fill: white; }
+    }
+    @media (prefers-color-scheme: dark) {
+      .background { fill: white; }
+      .foreground { fill: black; }
+    }
+  </style>
+  <g clip-path="url(#clip0_7960_43945)">
+    <rect class="background" width="180" height="180" rx="37" />
+    <g style="transform: scale(95%); transform-origin: center">
+      <path class="foreground"
+        d="M101.141 53H136.632C151.023 53 162.689 64.6662 162.689 79.0573V112.904H148.112V79.0573C148.112 78.7105 148.098 78.3662 148.072 78.0251L112.581 112.898C112.701 112.902 112.821 112.904 112.941 112.904H148.112V126.672H112.941C98.5504 126.672 86.5638 114.891 86.5638 100.5V66.7434H101.141V100.5C101.141 101.15 101.191 101.792 101.289 102.422L137.56 66.7816C137.255 66.7563 136.945 66.7434 136.632 66.7434H101.141V53Z" />
+      <path class="foreground"
+        d="M65.2926 124.136L14 66.7372H34.6355L64.7495 100.436V66.7372H80.1365V118.47C80.1365 126.278 70.4953 129.958 65.2926 124.136Z" />
+    </g>
+  </g>
   <defs>
-    <linearGradient id="airaG" x1="16" y1="6" x2="112" y2="120" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#6BB6FF"/>
-      <stop offset="0.38" stop-color="#3B82F6"/>
-      <stop offset="0.72" stop-color="#2F6BFF"/>
-      <stop offset="1" stop-color="#1E4FD8"/>
-    </linearGradient>
+    <clipPath id="clip0_7960_43945">
+      <rect width="180" height="180" fill="white" />
+    </clipPath>
   </defs>
-
-  <!-- Orbital rings -->
-  <path
-    d="M18 78c10-34 36-58 62-54s48 34 42 68"
-    stroke="url(#airaG)"
-    stroke-width="3"
-    stroke-linecap="round"
-    opacity="0.9"
-  />
-  <path
-    d="M110 78c-10-34-36-58-62-54S0 58 6 92"
-    stroke="url(#airaG)"
-    stroke-width="3"
-    stroke-linecap="round"
-    opacity="0.9"
-  />
-  <path
-    d="M22 42c22-28 58-34 82-14"
-    stroke="url(#airaG)"
-    stroke-width="2.5"
-    stroke-linecap="round"
-    opacity="0.75"
-  />
-  <path
-    d="M106 42c-22-28-58-34-82-14"
-    stroke="url(#airaG)"
-    stroke-width="2.5"
-    stroke-linecap="round"
-    opacity="0.75"
-  />
-
-  <!-- Bold rounded A -->
-  <path
-    fill="url(#airaG)"
-    fill-rule="evenodd"
-    d="M64 14c8.6 0 15.4 4.6 18.8 12.2l22.6 51.4c1.4 3.2-.1 6.9-3.4 8.4-3.2 1.5-7 .1-8.5-3L88.2 68H39.8l-5.3 15c-1.5 3.1-5.3 4.5-8.5 3-3.3-1.5-4.8-5.2-3.4-8.4L45.2 26.2C48.6 18.6 55.4 14 64 14Zm0 18.5L48.8 68h30.4L64 32.5Z"
-  />
-
-  <!-- Rounded foot terminals -->
-  <ellipse cx="30" cy="98" rx="11" ry="9" fill="url(#airaG)"/>
-  <ellipse cx="98" cy="98" rx="11" ry="9" fill="url(#airaG)"/>
-
-  <!-- Open book in negative space -->
-  <path
-    fill="url(#airaG)"
-    d="M49 62c5.2-3.4 10-5 15-5s9.8 1.6 15 5c.9.6 1.2 1.7.8 2.7l-2.2 6.2c-.3.9-1.2 1.4-2.1 1.2-3.5-.6-7.2-.9-11.5-.9s-8 .3-11.5.9c-.9.2-1.8-.3-2.1-1.2l-2.2-6.2c-.4-1-.1-2.1.8-2.7Z"
-  />
-  <path
-    fill="#FFFFFF"
-    fill-opacity="0.28"
-    d="M64 58.5V72c-4.2 0-7.9.3-11.5.9l-1.5-4.2c4-2.4 8.2-4.2 13-4.2Z"
-  />
-
-  <!-- Four-point sparkle -->
-  <path
-    fill="url(#airaG)"
-    d="M64 44.5 66.8 51.8 74.2 54.6 66.8 57.4 64 64.7 61.2 57.4 53.8 54.6 61.2 51.8Z"
-  />
 </svg>

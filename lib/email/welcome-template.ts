@@ -1,28 +1,15 @@
 import { SOCIAL } from '@/lib/site'
-
-/** ASCII brand for email clients — never use the special-i wordmark (many inboxes show “Aria”). */
-export const EMAIL_BRAND_NAME = 'AIra'
+import {
+  EMAIL_BRAND_NAME,
+  escapeHtml,
+  siteOrigin,
+} from '@/lib/email/email-shell'
 
 export const WELCOME_EMAIL_SUBJECT =
   'Welcome to AIra — your AI learning companion'
 
 const PREHEADER =
   "Meet AIra's main features — AI teaching, curriculum, competitive exams, Live Q&A, and Study Studio."
-
-function siteOrigin(): string {
-  const raw =
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-    'https://aira-landing-page-elite.vercel.app'
-  return raw.replace(/\/$/, '')
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
 
 export type WelcomeTemplateInput = {
   name: string
@@ -78,8 +65,8 @@ export function buildWelcomeEmail(input: WelcomeTemplateInput): WelcomeTemplate 
   const origin = siteOrigin()
   const displayName = (input.name.trim() || 'there').slice(0, 80)
   const safeName = escapeHtml(displayName)
-  const logoUrl = `${origin}/aira-mark.png`
-  const iconUrl = `${origin}/brand/aira-icon.png`
+  const logoUrl = `${origin}/aira-mark.svg`
+  const iconUrl = `${origin}/icon.svg`
   const ctaUrl = `${origin}/student/mode-selection`
   const year = new Date().getFullYear()
   const brand = EMAIL_BRAND_NAME

@@ -25,6 +25,11 @@ Open **http://localhost:3000** only. Sign in at `/login`, then you should land o
 - Do **not** rewrite `/api/*` to the tutor SPA in `next.config.mjs` / landing `vercel.json`.
 - Production tutor host (`ai-ra-app.vercel.app`) serves its own `/api/tts` + `/api/waitlist` serverless functions.
 
+## Email verification (password signup)
+Branded “Verify your email for AIra” is sent from `/api/auth/send-verification` via **Resend** (AIra logo + **Verify email address** button — no raw firebaseapp.com link in the HTML body).
+
+Requires `FIREBASE_SERVICE_ACCOUNT_JSON` + `RESEND_API_KEY` on Vercel. Resend on `/verify-email` is rate-limited (60s). Falls back to Firebase default mail only if Admin is missing.
+
 ## Welcome email (new accounts only)
 Branded “Welcome to AIra” mail is sent from landing `/api/welcome` **once per new account**:
 - New OAuth (Google / Apple / Microsoft): when `isNewUser === true`
@@ -47,7 +52,7 @@ SMTP_USER=airaaitutor@gmail.com
 SMTP_PASS=<Google App Password>
 SMTP_FROM="AIra <airaaitutor@gmail.com>"
 ```
-Optional but recommended for domain sync / backfill script:
+Optional but recommended for verification links, domain sync / backfill script:
 ```
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 ```

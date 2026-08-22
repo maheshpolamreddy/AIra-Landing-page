@@ -35,48 +35,58 @@ export async function POST(request: Request) {
     )
   }
 
+  let body: { name?: string } = {}
   try {
-    const admin = await import('@/lib/firebase/verification-admin')
+    body = (await request.json()) as { name?: string }
+  } catch {
+    body = {}
+  }
 
-    if (!admin.isVerificationAdminConfigured()) {
-      return Response.json(
-        { ok: false, error: 'Admin credentials not configured', code: 'admin_not_configured' },
-        { status: 503 },
-      )
-    }
-    if (!isEmailConfigured()) {
-      return Response.json(
-        { ok: false, error: 'Email provider not configured', code: 'not_configured' },
-        { status: 503 },
-      )
-    }
+  let decoded: Awaited<ReturnType<typeof verifyIdToken>>
+  try {
+    decoded = await verifyIdToken(token)
+  } catch (err) {
+    console.warn('[verify-email] invalid token', err instanceof Error ? err.message : 'unknown')
+    return Response.json(
+      { ok: false, error: 'Invalid token', code: 'invalid_token' },
+      { status: 401 },
+    )
+  }
 
-    let body: { name?: string } = {}
-    try {
-      body = (await request.json()) as { name?: string }
-    } catch {
-      body = {}
-    }
+  const email = decoded.email?.trim().toLowerCase()
+  if (!email) {
+    return Response.json(
+      { ok: false, error: 'Token has no email', code: 'no_email' },
+      { status: 400 },
+    )
+  }
 
-    let decoded: Awaited<ReturnType<typeof verifyIdToken>>
-    try {
-      decoded = await verifyIdToken(token)
-    } catch (err) {
-      console.warn('[verify-email] invalid token', err instanceof Error ? err.message : 'unknown')
-      return Response.json(
-        { ok: false, error: 'Invalid token', code: 'invalid_token' },
-        { status: 401 },
-      )
-    }
+  if (!isEmailConfigured()) {
+    return Response.json(
+      { ok: false, error: 'Email provider not configured', code: 'not_configured' },
+      { status: 503 },
+    )
+  }
 
-    const email = decoded.email?.trim().toLowerCase()
-    if (!email) {
-      return Response.json(
-        { ok: false, error: 'Token has no email', code: 'no_email' },
-        { status: 400 },
-      )
-    }
+  let admin: typeof import('@/lib/firebase/verification-admin')
+  try {
+    admin = await import('@/lib/firebase/verification-admin')
+  } catch (err) {
+    console.error('[verify-email] admin module load failed', err instanceof Error ? err.message : 'unknown')
+    return Response.json(
+      { ok: false, error: 'Admin SDK unavailable', code: 'admin_not_configured' },
+      { status: 503 },
+    )
+  }
 
+  if (!admin.isVerificationAdminConfigured()) {
+    return Response.json(
+      { ok: false, error: 'Admin credentials not configured', code: 'admin_not_configured' },
+      { status: 503 },
+    )
+  }
+
+  try {
     const cooldownMs = await admin.verificationCooldownRemaining(decoded.uid)
     if (cooldownMs > 0) {
       return Response.json(
@@ -107,7 +117,8 @@ export async function POST(request: Request) {
 
     return Response.json({ ok: true, sent: true, code: 'sent' })
   } catch (err) {
-    console.error('[verify-email] failed', err instanceof Error ? err.message : 'unknown')
+    const message = err instanceof Error ? err.message : 'unknown'
+    console.error('[verify-email] failed', message)
     return Response.json(
       { ok: false, error: 'Unable to send verification email', code: 'send_failed' },
       { status: 502 },

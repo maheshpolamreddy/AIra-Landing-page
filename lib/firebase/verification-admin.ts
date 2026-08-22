@@ -18,7 +18,11 @@ function hasCredentials(): boolean {
 function loadServiceAccount(): ServiceAccount {
   const inline = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
   if (inline) {
-    return JSON.parse(inline) as ServiceAccount
+    try {
+      return JSON.parse(inline) as ServiceAccount
+    } catch {
+      throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is set but is not valid JSON.')
+    }
   }
   const path = process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()
   if (path) {

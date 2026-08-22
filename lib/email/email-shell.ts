@@ -19,7 +19,7 @@ export function escapeHtml(value: string): string {
 }
 
 export function emailLogoUrl(origin: string): string {
-  return `${origin}/aira-mark.svg`
+  return `${origin}/aira-mark.png`
 }
 
 export function emailIconUrl(origin: string): string {

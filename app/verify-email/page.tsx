@@ -17,7 +17,7 @@ import {
   logOut,
   needsEmailVerification,
   reloadCurrentUser,
-  requestWelcomeEmail,
+  maybeSendWelcomeEmail,
   resolveRoleForRedirect,
   sendVerificationEmail,
 } from '@/lib/firebase/auth'
@@ -55,8 +55,7 @@ function VerifyEmailContent() {
       current &&
       current.providerData.some((p) => p.providerId === 'password')
     ) {
-      // New password accounts: welcome only after verification succeeds.
-      await requestWelcomeEmail(
+      await maybeSendWelcomeEmail(
         current,
         current.displayName?.trim() || current.email?.split('@')[0],
       )

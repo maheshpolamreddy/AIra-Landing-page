@@ -34,17 +34,26 @@ Returning logins never request welcome. Firestore `welcomeEmailSent` + claim-bef
 
 ### Required env (`.env.local` + Vercel `aira-landing-page-elite`)
 ```
+RESEND_API_KEY=re_...
+EMAIL_FROM=AIra <onboarding@resend.dev>
+```
+Health check: `GET /api/welcome/health` → `{ configured: true, provider: "resend" }`.
+
+Optional SMTP fallback (if Resend unset):
+```
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
 SMTP_USER=airaaitutor@gmail.com
 SMTP_PASS=<Google App Password>
 SMTP_FROM="AIra <airaaitutor@gmail.com>"
 ```
-Optional but recommended for domain sync / Admin SDK:
+Optional but recommended for domain sync / backfill script:
 ```
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 ```
-Without SMTP, signup still works; welcome mail fails and is logged. Without a service account, `/api/welcome` still works via Firebase/Firestore REST + the caller's ID token (needs `NEXT_PUBLIC_FIREBASE_*` at build time). Email copy always spells the brand as **AIra** (ASCII).
+Without Resend or SMTP, signup still works; welcome mail returns 503. Without a service account, `/api/welcome` still works via Firebase/Firestore REST + the caller's ID token. Email copy always spells the brand as **AIra** (ASCII).
+
+Backfill pending test accounts: `node scripts/backfill-welcome-email.mjs` (requires Admin JSON + Resend).
 
 ## Post-auth navigation
 - student → always `/student/mode-selection` (Mode Selection)

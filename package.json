@@ -9,7 +9,8 @@
     "postbuild": "node scripts/sync-auth-domains.mjs",
     "start": "next start",
     "lint": "eslint .",
-    "auth:sync-domains": "node scripts/sync-auth-domains.mjs"
+    "auth:sync-domains": "node scripts/sync-auth-domains.mjs",
+    "welcome:backfill": "node scripts/backfill-welcome-email.mjs"
   },
   "dependencies": {
     "@heygen/liveavatar-web-sdk": "^0.0.18",

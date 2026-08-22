@@ -72,7 +72,7 @@ export type SignUpInput = {
 }
 
 /**
- * Best-effort branded welcome mail. Awaits claim/queue (not SMTP) so redirects
+ * Best-effort branded welcome mail. Awaits API response (not SMTP) so redirects
  * do not abort the request; failures never throw to callers.
  */
 export async function requestWelcomeEmail(user: User, name?: string): Promise<void> {
@@ -98,9 +98,19 @@ export async function requestWelcomeEmail(user: User, name?: string): Promise<vo
         signal: controller.signal,
         keepalive: true,
       })
+      const payload = (await res.json().catch(() => ({}))) as {
+        ok?: boolean
+        sent?: boolean
+        skipped?: boolean
+        code?: string
+        error?: string
+      }
       if (!res.ok) {
-        const detail = await res.text().catch(() => '')
-        console.warn('[auth] welcome email HTTP', res.status, detail.slice(0, 120))
+        console.warn('[auth] welcome email HTTP', res.status, payload.code || payload.error || '')
+      } else if (payload.sent) {
+        console.info('[auth] welcome email queued/sent', payload.code)
+      } else if (payload.skipped) {
+        console.info('[auth] welcome email skipped', payload.code)
       }
     } finally {
       clearTimeout(timer)
@@ -111,6 +121,12 @@ export async function requestWelcomeEmail(user: User, name?: string): Promise<vo
       err instanceof Error ? err.message : 'unknown',
     )
   }
+}
+
+/** Send welcome only when the profile still has welcomeEmailPending. */
+export async function maybeSendWelcomeEmail(user: User, name?: string): Promise<void> {
+  if (!(await shouldRequestWelcomeEmail(user))) return
+  await requestWelcomeEmail(user, name)
 }
 
 async function saveUserProfile(
@@ -148,7 +164,28 @@ async function saveUserProfile(
     payload.role = normalizeAppRole(extra.role)
   }
 
-  await setDoc(ref, payload, { merge: true })
+  try {
+    await setDoc(ref, payload, { merge: true })
+  } catch (err) {
+    console.error('[auth] profile save failed', err)
+    if (isNew) {
+      try {
+        await setDoc(
+          ref,
+          {
+            uid: user.uid,
+            email: user.email,
+            welcomeEmailPending: true,
+            updatedAt: serverTimestamp(),
+            createdAt: serverTimestamp(),
+          },
+          { merge: true },
+        )
+      } catch (retryErr) {
+        console.error('[auth] minimal profile save failed', retryErr)
+      }
+    }
+  }
 
   return {
     isNew,
@@ -222,22 +259,19 @@ async function upsertOAuthProfile(
     cred.user.email?.split('@')[0] ||
     'Student'
   const isNewUser = getAdditionalUserInfo(cred)?.isNewUser === true
-  let shouldWelcome = isNewUser
   try {
-    const profile = await saveUserProfile(
+    await saveUserProfile(
       cred.user,
       { name, provider },
       { preserveExistingRole: true },
     )
-    // Retry until sent — isNewUser is only true on the first OAuth create.
-    shouldWelcome =
-      isNewUser ||
-      (profile.welcomeEmailPending && !profile.welcomeEmailSent)
   } catch (profileErr) {
     console.error('[auth] profile save failed', profileErr)
   }
-  if (shouldWelcome) {
+  if (isNewUser) {
     await requestWelcomeEmail(cred.user, name)
+  } else {
+    await maybeSendWelcomeEmail(cred.user, name)
   }
   return cred
 }

@@ -1,4 +1,9 @@
+import path from 'path'
+import { fileURLToPath } from 'url'
+
 /** @type {import('next').NextConfig} */
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const TUTOR_DEV =
   process.env.TUTOR_DEV_URL || 'http://127.0.0.1:5173'
@@ -32,12 +37,16 @@ const tutorDevRewrites = [
 ]
 
 const nextConfig = {
+  // Keep firebase-admin external so Vercel Node runtime loads it natively (avoids jose ESM bundling errors).
+  serverExternalPackages: ['firebase-admin'],
   typescript: {
     ignoreBuildErrors: true,
   },
   images: {
     unoptimized: true,
   },
+  // Parent ~/package-lock.json confuses Next workspace-root inference (do not use turbopack.root — breaks Tailwind CSS resolve).
+  outputFileTracingRoot: __dirname,
   allowedDevOrigins: [
     '127.0.0.1:3000',
     'localhost:3000',

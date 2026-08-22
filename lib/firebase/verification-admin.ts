@@ -15,11 +15,42 @@ function hasCredentials(): boolean {
   )
 }
 
+function parseInlineServiceAccount(raw: string): ServiceAccount {
+  let value = raw.trim()
+
+  // Vercel/dotenv often stores the JSON as an escaped JSON string.
+  if (value.startsWith('"')) {
+    try {
+      const unwrapped = JSON.parse(value) as unknown
+      if (typeof unwrapped === 'string') {
+        value = unwrapped.trim()
+      }
+    } catch {
+      // fall through to direct parse
+    }
+  }
+
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1).trim()
+  }
+
+  const start = value.indexOf('{')
+  const end = value.lastIndexOf('}')
+  if (start >= 0 && end > start) {
+    value = value.slice(start, end + 1)
+  }
+
+  return JSON.parse(value) as ServiceAccount
+}
+
 function loadServiceAccount(): ServiceAccount {
   const inline = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
   if (inline) {
     try {
-      return JSON.parse(inline) as ServiceAccount
+      return parseInlineServiceAccount(inline)
     } catch {
       throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is set but is not valid JSON.')
     }

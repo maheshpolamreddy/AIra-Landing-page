@@ -3,12 +3,19 @@ import { isEmailConfigured, resolveEmailProvider } from '@/lib/email/send-transa
 export const runtime = 'nodejs'
 
 export async function GET() {
+  const hasCredentials = Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim())
+  const credentialsLength = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.length ?? 0
+
   let adminConfigured = false
+  let adminError: string | null = null
   try {
     const admin = await import('@/lib/firebase/verification-admin')
     adminConfigured = admin.isVerificationAdminConfigured()
-  } catch {
-    adminConfigured = false
+    if (hasCredentials && !adminConfigured) {
+      adminError = 'credentials_present_but_unparseable'
+    }
+  } catch (err) {
+    adminError = err instanceof Error ? err.message : 'import_failed'
   }
 
   const emailConfigured = isEmailConfigured()
@@ -18,5 +25,8 @@ export async function GET() {
     admin: adminConfigured,
     email: emailConfigured,
     provider: resolveEmailProvider(),
+    hasCredentials,
+    credentialsLength,
+    adminError,
   })
 }

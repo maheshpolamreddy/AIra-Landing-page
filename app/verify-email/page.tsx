@@ -17,7 +17,6 @@ import {
   logOut,
   needsEmailVerification,
   reloadCurrentUser,
-  maybeSendWelcomeEmail,
   resolveRoleForRedirect,
   sendVerificationEmail,
 } from '@/lib/firebase/auth'
@@ -49,17 +48,7 @@ function VerifyEmailContent() {
   const [info, setInfo] = useState<string | null>(null)
   const continued = useRef(false)
 
-  const goAfterAuth = useCallback(async (uid: string, verifiedUser?: typeof user) => {
-    const current = verifiedUser ?? user
-    if (
-      current &&
-      current.providerData.some((p) => p.providerId === 'password')
-    ) {
-      await maybeSendWelcomeEmail(
-        current,
-        current.displayName?.trim() || current.email?.split('@')[0],
-      )
-    }
+  const goAfterAuth = useCallback(async (uid: string) => {
     const role = normalizeAppRole(await resolveRoleForRedirect(uid, readRoleHint()))
     writeRoleHint(role)
     const dest = resolvePostAuthPath({
@@ -67,7 +56,7 @@ function VerifyEmailContent() {
       role,
     })
     window.location.assign(dest)
-  }, [redirectParam, user])
+  }, [redirectParam])
 
   useEffect(() => {
     const timer = setTimeout(() => setMounted(true), 0)
@@ -97,7 +86,7 @@ function VerifyEmailContent() {
           const next = await reloadCurrentUser()
           if (next && !needsEmailVerification(next) && !continued.current) {
             continued.current = true
-            await goAfterAuth(next.uid, next)
+            await goAfterAuth(next.uid)
           }
         } catch {
           /* keep waiting */
@@ -129,7 +118,7 @@ function VerifyEmailContent() {
       const next = await reloadCurrentUser()
       if (next && !needsEmailVerification(next)) {
         continued.current = true
-        await goAfterAuth(next.uid, next)
+        await goAfterAuth(next.uid)
         return
       }
       setError('Email is not verified yet. Open the link we sent, then try again.')

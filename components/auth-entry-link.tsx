@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/components/auth-provider'
 import { getUserAppRole } from '@/lib/firebase/auth'
-import { homeForRole } from '@/lib/auth-redirect'
+import { getPostAuthDestination } from '@/lib/auth-redirect'
 import { cn } from '@/lib/utils'
 
 type AuthEntryLinkProps = {
@@ -43,7 +43,7 @@ export function AuthEntryLink({
     setPortalHref(null)
     void getUserAppRole(user.uid).then((role) => {
       if (cancelled) return
-      setPortalHref(homeForRole(role))
+      setPortalHref(getPostAuthDestination(role))
       setRoleReady(true)
     })
     return () => {

@@ -13,7 +13,7 @@ import {
   authLabelClassName,
   authPrimaryBtnClassName,
 } from '@/components/auth-shell'
-import { logOut, resolveRoleForRedirect, signInWithEmail, needsEmailVerification, reloadCurrentUser, maybeSendWelcomeEmail } from '@/lib/firebase/auth'
+import { logOut, resolveRoleForRedirect, signInWithEmail, needsEmailVerification, reloadCurrentUser, retryWelcomeEmailIfPending } from '@/lib/firebase/auth'
 import { useAuth } from '@/components/auth-provider'
 import { LOGIN_INTENT_COPY, portalHrefForIntent } from '@/lib/site'
 import { getVerifyEmailPath, resolvePostAuthPath } from '@/lib/auth-redirect'
@@ -59,13 +59,13 @@ function LoginPageContent() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const goAfterAuth = async (uid: string, opts?: { sendWelcome?: boolean; user?: typeof user }) => {
+  const goAfterAuth = async (uid: string, opts?: { retryWelcome?: boolean; user?: typeof user }) => {
     if (externalPortal) {
       window.location.assign(externalPortal)
       return
     }
-    if (opts?.sendWelcome && opts.user) {
-      await maybeSendWelcomeEmail(
+    if (opts?.retryWelcome && opts.user) {
+      await retryWelcomeEmailIfPending(
         opts.user,
         opts.user.displayName?.trim() || opts.user.email?.split('@')[0],
       )
@@ -129,8 +129,7 @@ function LoginPageContent() {
         return
       }
       await goAfterAuth(current.uid, {
-        // Password users land here after clicking the Firebase verify link.
-        sendWelcome: fromVerifyLink && current.providerData.some((p) => p.providerId === 'password'),
+        retryWelcome: fromVerifyLink,
         user: current,
       })
     })()
@@ -175,7 +174,7 @@ function LoginPageContent() {
         return
       }
       await goAfterAuth(cred.user.uid, {
-        sendWelcome: true,
+        retryWelcome: true,
         user: cred.user,
       })
     } catch (err) {

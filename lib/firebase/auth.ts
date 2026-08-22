@@ -187,6 +187,11 @@ export async function maybeSendWelcomeEmail(user: User, name?: string): Promise<
   await requestWelcomeEmail(user, name)
 }
 
+/** Retry welcome only when a prior signup/OAuth send failed (welcomeEmailPending). */
+export async function retryWelcomeEmailIfPending(user: User, name?: string): Promise<void> {
+  await maybeSendWelcomeEmail(user, name)
+}
+
 async function saveUserProfile(
   user: User,
   extra: { name: string; dateOfBirth?: string; provider: string; role?: AppRole },
@@ -384,7 +389,14 @@ export async function signUpWithEmail(
         getAuthErrorCode(verifyErr) || 'unknown',
       )
     }
-    // Welcome email is sent only after the user verifies their inbox.
+    try {
+      await requestWelcomeEmail(cred.user, input.name.trim())
+    } catch (welcomeErr) {
+      console.warn(
+        '[auth] send welcome after signup failed:',
+        getAuthErrorCode(welcomeErr) || 'unknown',
+      )
+    }
     return cred
   } catch (err) {
     console.warn('[auth] email signup failed:', getAuthErrorCode(err) || 'unknown')

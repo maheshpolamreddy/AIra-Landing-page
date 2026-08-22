@@ -27,6 +27,14 @@ function continueUrl(request: Request): string {
 }
 
 export async function POST(request: Request) {
+  const token = bearerToken(request)
+  if (!token) {
+    return Response.json(
+      { ok: false, error: 'Missing bearer token', code: 'missing_token' },
+      { status: 401 },
+    )
+  }
+
   try {
     const admin = await import('@/lib/firebase/verification-admin')
 
@@ -40,14 +48,6 @@ export async function POST(request: Request) {
       return Response.json(
         { ok: false, error: 'Email provider not configured', code: 'not_configured' },
         { status: 503 },
-      )
-    }
-
-    const token = bearerToken(request)
-    if (!token) {
-      return Response.json(
-        { ok: false, error: 'Missing bearer token', code: 'missing_token' },
-        { status: 401 },
       )
     }
 

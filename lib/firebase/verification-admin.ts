@@ -37,7 +37,13 @@ function getAdminApp(): App {
 }
 
 export function isVerificationAdminConfigured(): boolean {
-  return hasCredentials()
+  if (!hasCredentials()) return false
+  try {
+    loadServiceAccount()
+    return true
+  } catch {
+    return false
+  }
 }
 
 export async function generateVerificationLink(

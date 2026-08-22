@@ -1,12 +1,6 @@
 import { isEmailConfigured } from '@/lib/email/send-transactional'
 import { sendVerificationEmail } from '@/lib/email/send-verification'
-import {
-  generateVerificationLink,
-  isAdminConfigured,
-  markVerificationEmailSent,
-  verificationCooldownRemaining,
-  verifyIdToken,
-} from '@/lib/firebase/admin'
+import { verifyIdToken } from '@/lib/firebase/welcome-server'
 
 export const runtime = 'nodejs'
 
@@ -34,7 +28,9 @@ function continueUrl(request: Request): string {
 
 export async function POST(request: Request) {
   try {
-    if (!isAdminConfigured()) {
+    const admin = await import('@/lib/firebase/verification-admin')
+
+    if (!admin.isVerificationAdminConfigured()) {
       return Response.json(
         { ok: false, error: 'Admin credentials not configured', code: 'admin_not_configured' },
         { status: 503 },
@@ -81,7 +77,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const cooldownMs = await verificationCooldownRemaining(decoded.uid)
+    const cooldownMs = await admin.verificationCooldownRemaining(decoded.uid)
     if (cooldownMs > 0) {
       return Response.json(
         {
@@ -100,9 +96,9 @@ export async function POST(request: Request) {
       email.split('@')[0] ||
       'there'
 
-    const verifyUrl = await generateVerificationLink(email, continueUrl(request))
+    const verifyUrl = await admin.generateVerificationLink(email, continueUrl(request))
     await sendVerificationEmail({ to: email, name, verifyUrl })
-    await markVerificationEmailSent(decoded.uid)
+    await admin.markVerificationEmailSent(decoded.uid)
 
     console.info('[verify-email] sent', {
       uid: decoded.uid,

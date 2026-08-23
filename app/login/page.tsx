@@ -17,6 +17,7 @@ import { logOut, resolveRoleForRedirect, signInWithEmail, needsEmailVerification
 import { useAuth } from '@/components/auth-provider'
 import { LOGIN_INTENT_COPY, portalHrefForIntent } from '@/lib/site'
 import { getVerifyEmailPath, resolvePostAuthPath } from '@/lib/auth-redirect'
+import { navigateAfterAuth } from '@/lib/navigation'
 import { checkEmailQuality } from '@/lib/email-quality'
 import {
   clearRoleHint,
@@ -76,7 +77,7 @@ function LoginPageContent() {
       redirect: redirectParam,
       role,
     })
-    window.location.assign(dest)
+    navigateAfterAuth(dest)
   }
 
   useEffect(() => {

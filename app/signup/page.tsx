@@ -24,6 +24,7 @@ import {
   type AppRole,
 } from '@/lib/auth-redirect'
 import { checkEmailQuality } from '@/lib/email-quality'
+import { navigateAfterAuth, navigateToLanding } from '@/lib/navigation'
 
 function SignupFallback() {
   return (
@@ -65,7 +66,7 @@ function SignupPageContent() {
       redirect: redirectParam,
       role: resolved,
     })
-    window.location.assign(dest)
+    navigateAfterAuth(dest)
   }
 
   useEffect(() => {
@@ -78,7 +79,7 @@ function SignupPageContent() {
     if (authLoading || !user || autoContinued.current || loading) return
     autoContinued.current = true
     if (needsEmailVerification(user)) {
-      window.location.assign(getVerifyEmailPath(redirectParam))
+      navigateToLanding(getVerifyEmailPath(redirectParam))
       return
     }
     void goAfterAuth(user.uid)
@@ -114,7 +115,7 @@ function SignupPageContent() {
         role,
       })
       writeRoleHint(normalizeAppRole(role))
-      window.location.assign(getVerifyEmailPath(redirectParam))
+      navigateToLanding(getVerifyEmailPath(redirectParam))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create account.')
     } finally {

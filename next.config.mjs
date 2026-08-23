@@ -8,6 +8,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const TUTOR_DEV =
   process.env.TUTOR_DEV_URL || 'http://127.0.0.1:5173'
 
+/** Enable tutor proxy in dev OR whenever TUTOR_DEV_URL is explicitly configured. */
+const enableTutorProxy =
+  process.env.NODE_ENV === 'development' ||
+  Boolean(process.env.TUTOR_DEV_URL?.trim())
+
 /**
  * Proxy tutor SPA + Vite HMR through landing in local dev.
  * Do NOT rewrite /api/* — those are Next.js routes on this app (tts, chat, waitlist).
@@ -54,7 +59,12 @@ const nextConfig = {
     'localhost:5173',
   ],
   async rewrites() {
-    if (process.env.NODE_ENV === 'development') {
+    if (enableTutorProxy) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(
+          `[next.config] Tutor proxy enabled → ${TUTOR_DEV} (${tutorDevRewrites.length} rewrite rules)`,
+        )
+      }
       return { beforeFiles: tutorDevRewrites }
     }
     return []

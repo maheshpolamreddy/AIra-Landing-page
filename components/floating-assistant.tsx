@@ -1,10 +1,13 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, lazy, Suspense } from 'react'
 import Image from 'next/image'
 import { X } from 'lucide-react'
-import { AiAssistant } from '@/components/ai-assistant'
 import { BRAND_ICON_SRC } from '@/components/brand'
+
+const AiAssistant = lazy(() =>
+  import('@/components/ai-assistant').then((m) => ({ default: m.AiAssistant })),
+)
 
 export function FloatingAssistant() {
   const [isOpen, setIsOpen] = useState(false)
@@ -175,10 +178,12 @@ export function FloatingAssistant() {
           }`}
         >
           {isOpen && (
-            <AiAssistant 
-              isModal={true} 
-              onClose={() => setIsOpen(false)} 
-            />
+            <Suspense fallback={<div className="flex h-full items-center justify-center bg-slate-950 text-white/60">Loading…</div>}>
+              <AiAssistant 
+                isModal={true} 
+                onClose={() => setIsOpen(false)} 
+              />
+            </Suspense>
           )}
         </div>
       </div>

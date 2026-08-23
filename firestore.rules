@@ -23,5 +23,33 @@ service cloud.firestore {
         && request.resource.data.message is string;
       allow read, update, delete: if false;
     }
+
+    // Waitlist / coming-soon — create only
+    match /waitlist/{id} {
+      allow create: if request.resource.data.keys().hasAll(['email', 'createdAt'])
+        && request.resource.data.email is string;
+      allow read, update, delete: if false;
+    }
+
+    // Curriculum teaching content — read for authenticated users; writes via Admin SDK only
+    match /curriculumTopics/{topicId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /teachingContent/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+
+      match /segments/{segmentId} {
+        allow read: if request.auth != null;
+        allow write: if false;
+      }
+    }
+
+    match /contentGenerationJobs/{jobId} {
+      allow read: if false;
+      allow write: if false;
+    }
   }
 }

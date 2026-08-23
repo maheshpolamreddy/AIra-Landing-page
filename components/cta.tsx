@@ -68,15 +68,16 @@ export function CTA({ onPricingClick }: CTAProps) {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-              <AuthEntryLink href="/signup">
-                <Button
-                  size="lg"
-                  className="h-16 bg-white hover:bg-slate-50 text-indigo-950 font-bold px-10 rounded-2xl group/btn shadow-[0_20px_40px_-10px_rgba(255,255,255,0.2)] hover:shadow-[0_25px_50px_-12px_rgba(255,255,255,0.3)] transition-all duration-300 border-b-4 border-slate-200 hover:border-b-2 hover:translate-y-[2px]"
-                >
+              <Button
+                size="lg"
+                className="h-16 bg-white hover:bg-slate-50 text-indigo-950 font-bold px-10 rounded-2xl group/btn shadow-[0_20px_40px_-10px_rgba(255,255,255,0.2)] hover:shadow-[0_25px_50px_-12px_rgba(255,255,255,0.3)] transition-all duration-300 border-b-4 border-slate-200 hover:border-b-2 hover:translate-y-[2px]"
+                asChild
+              >
+                <AuthEntryLink href="/signup">
                   Start Free Trial
                   <ArrowRight className="ml-3 w-6 h-6 group-hover/btn:translate-x-2 transition-transform" />
-                </Button>
-              </AuthEntryLink>
+                </AuthEntryLink>
+              </Button>
               <Button
                 variant="outline"
                 size="lg"

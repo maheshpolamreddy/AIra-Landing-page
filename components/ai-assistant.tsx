@@ -101,6 +101,9 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
     }
     return 'en-IN'
   })
+  const ttsLanguageRef = useRef(ttsLanguage)
+  ttsLanguageRef.current = ttsLanguage
+  const chatAbortRef = useRef<AbortController | null>(null)
   
   const videoRef = useRef<HTMLVideoElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -357,7 +360,7 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
           'Content-Type': 'application/json',
           Accept: 'audio/wav, application/json',
         },
-        body: JSON.stringify({ text: nextSentence, language: ttsLanguage })
+        body: JSON.stringify({ text: nextSentence, language: ttsLanguageRef.current })
       })
 
       if (!res.ok) throw new Error('API request failed')
@@ -680,14 +683,17 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
 
   // Submit Text Query to Groq Backend
   const handleSubmitText = async (text: string) => {
-    if (!text.trim()) return
+    if (!text.trim() || isTyping) return
 
     setShowSuggestions(false)
 
     // Detect language switch request and persist it
     const detectedLang = detectLanguageSetting(text)
-    if (detectedLang) setTtsLanguage(detectedLang)
-    const activeLang = detectedLang ?? ttsLanguage
+    if (detectedLang) {
+      setTtsLanguage(detectedLang)
+      ttsLanguageRef.current = detectedLang
+    }
+    const activeLang = detectedLang ?? ttsLanguageRef.current
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -704,6 +710,10 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
     const aiMessageId = (Date.now() + 1).toString()
     setMessages(prev => [...prev, { id: aiMessageId, role: 'assistant', content: '' }])
 
+    chatAbortRef.current?.abort()
+    const abort = new AbortController()
+    chatAbortRef.current = abort
+
     try {
       const chatHistory = messages
         .concat(userMessage)
@@ -714,7 +724,8 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: chatHistory, language: activeLang })
+        body: JSON.stringify({ messages: chatHistory, language: activeLang }),
+        signal: abort.signal,
       })
 
       if (!response.ok) {
@@ -730,6 +741,25 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
       let fullResponseText = ''
       let buffer = ''
 
+      const consumeSseLine = (line: string) => {
+        if (!line.startsWith('data: ')) return
+        const jsonStr = line.slice(6).trim()
+        if (jsonStr === '[DONE]') return
+        try {
+          const json = JSON.parse(jsonStr)
+          const chunkText = json.choices[0]?.delta?.content || ''
+          if (chunkText) {
+            fullResponseText += chunkText
+            setMessages(prev =>
+              prev.map(m => m.id === aiMessageId ? { ...m, content: fullResponseText } : m)
+            )
+            feedStreamText(chunkText)
+          }
+        } catch {
+          // Partial JSON, retry on next boundary
+        }
+      }
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
@@ -741,29 +771,12 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
           const line = buffer.slice(0, boundary).trim()
           buffer = buffer.slice(boundary + 1)
           boundary = buffer.indexOf('\n')
-
-          if (line.startsWith('data: ')) {
-            const jsonStr = line.slice(6).trim()
-            if (jsonStr === '[DONE]') continue
-            try {
-              const json = JSON.parse(jsonStr)
-              const chunkText = json.choices[0]?.delta?.content || ''
-              if (chunkText) {
-                fullResponseText += chunkText
-                
-                // Update final message in UI
-                setMessages(prev => 
-                  prev.map(m => m.id === aiMessageId ? { ...m, content: fullResponseText } : m)
-                )
-                // Speak immediately — don't wait for full response
-                feedStreamText(chunkText)
-              }
-            } catch (e) {
-              // Partial JSON, retry on next boundary
-            }
-          }
+          consumeSseLine(line)
         }
       }
+
+      // Flush any trailing SSE line without a final newline
+      if (buffer.trim()) consumeSseLine(buffer.trim())
 
       setIsTyping(false)
       // Flush any leftover text that didn't end with punctuation
@@ -774,6 +787,7 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
       }
       
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
       console.error('Error fetching chat response:', err)
       setIsTyping(false)
       const errorMsg = 'I apologize, but I encountered an error. Please try again.'
@@ -837,7 +851,7 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
                   playsInline
                   muted
                   loop
-                  preload="auto"
+                  preload="metadata"
                   style={{ objectFit: 'cover' }}
                   className={`w-full h-full object-cover object-[50%_0%] scale-[1.40] transition-[filter] duration-500`}
                 />
@@ -947,7 +961,7 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
                             <span>RECENT</span>
                           </div>
                           
-                          {isTyping && latest.role === 'user' ? (
+                          {isTyping && (!latest.content || latest.role === 'user') ? (
                             <div className="flex items-center gap-1.5 py-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-[bounce_1.4s_infinite_0ms]" />
                               <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-[bounce_1.4s_infinite_200ms]" />
@@ -1160,7 +1174,7 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
                     playsInline
                     muted
                     loop
-                    preload="auto"
+                    preload="metadata"
                     style={{ objectFit: 'cover' }}
                     className={`w-full h-full object-cover object-[50%_0%] scale-[1.40] transition-[filter] duration-500 will-change-[filter] ${
                       activeExpression === 'warm_smile'  ? 'saturate-[1.08] contrast-[1.02] sepia-[0.04]' :
@@ -1316,7 +1330,7 @@ export function AiAssistant({ standalone = false, isModal = false, onClose }: Ai
                           </div>
                           
                           {/* If typing indicator is active AND the latest is user, show typing here */}
-                          {isTyping && latest.role === 'user' ? (
+                          {isTyping && (!latest.content || latest.role === 'user') ? (
                             <div className="flex items-center gap-1.5 py-1">
                               <span className="w-2 h-2 rounded-full bg-white/40 animate-[bounce_1.4s_infinite_0ms]" />
                               <span className="w-2 h-2 rounded-full bg-white/40 animate-[bounce_1.4s_infinite_200ms]" />

@@ -23,15 +23,12 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const pathname = usePathname()
-  const [prevPathname, setPrevPathname] = useState(pathname)
   const isHome = pathname === '/'
   const { user, loading: authLoading, logOut } = useAuth()
 
-  // Close mobile nav when the route changes (adjust state during render).
-  if (pathname !== prevPathname) {
-    setPrevPathname(pathname)
+  useEffect(() => {
     setMobileOpen(false)
-  }
+  }, [pathname])
 
   const hashHref = (hash: string) => (isHome ? hash : `/${hash}`)
 

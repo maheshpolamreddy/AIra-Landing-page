@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useAuth } from '@/components/auth-provider'
 import { getUserAppRole } from '@/lib/firebase/auth'
 import { getPostAuthDestination } from '@/lib/auth-redirect'
+import { navigateToApp } from '@/lib/navigation'
 import { cn } from '@/lib/utils'
 
 type AuthEntryLinkProps = {
@@ -54,14 +55,14 @@ export function AuthEntryLink({
   if (!loading && user) {
     if (!roleReady || !portalHref) {
       return (
-        <button
-          type="button"
-          disabled
+        <span
+          role="status"
           aria-busy="true"
-          className={cn(className, 'cursor-wait opacity-70')}
+          aria-live="polite"
+          className={cn(className, 'inline-flex cursor-wait opacity-70 pointer-events-none')}
         >
           {children}
-        </button>
+        </span>
       )
     }
 
@@ -72,7 +73,7 @@ export function AuthEntryLink({
         onClick={(e) => {
           onNavigate?.()
           e.preventDefault()
-          window.location.assign(portalHref)
+          navigateToApp(portalHref)
         }}
       >
         {children}

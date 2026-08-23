@@ -8,10 +8,15 @@ export type SendWelcomeInput = {
 
 export async function sendWelcomeEmail(input: SendWelcomeInput): Promise<void> {
   const template = buildWelcomeEmail({ name: input.name })
-  await sendTransactionalEmail({
+  const result = await sendTransactionalEmail({
     to: input.to,
     subject: template.subject,
     text: template.text,
     html: template.html,
+  })
+  console.info('[welcome-email] delivered', {
+    provider: result.provider,
+    messageId: result.messageId,
+    usedFallback: result.usedFallback ?? false,
   })
 }

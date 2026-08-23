@@ -39,26 +39,29 @@ Returning logins never request welcome. Failed sends retry via `welcomeEmailPend
 
 ### Required env (`.env.local` + Vercel `aira-landing-page-elite`)
 ```
-RESEND_API_KEY=re_...
-EMAIL_FROM=AIra <onboarding@resend.dev>
-```
-Health check: `GET /api/welcome/health` → `{ configured: true, provider: "resend" }`.
-
-Optional SMTP fallback (if Resend unset):
-```
+# Prefer SMTP for Gmail (Resend sandbox onboarding@resend.dev cannot reach real users)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
 SMTP_USER=airaaitutor@gmail.com
 SMTP_PASS=<Google App Password>
 SMTP_FROM="AIra <airaaitutor@gmail.com>"
+EMAIL_FROM="AIra <airaaitutor@gmail.com>"
+
+# Optional: Resend with a *verified custom domain* (not resend.dev / not gmail.com)
+# RESEND_API_KEY=re_...
+# EMAIL_FROM=AIra <noreply@your-verified-domain.com>
 ```
-Optional but recommended for verification links, domain sync / backfill script:
+Health check: `GET /api/email/health` → `{ canDeliverExternally: true, provider: "smtp"|"resend" }`.
+
+If `EMAIL_FROM` is still `onboarding@resend.dev` and SMTP is unset, only the Resend account owner receives mail. The app now prefers SMTP whenever From is sandbox or Gmail.
+
+Optional but recommended for branded verification links + Admin SDK:
 ```
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 ```
-Without Resend or SMTP, signup still works; welcome mail returns 503. Without a service account, `/api/welcome` still works via Firebase/Firestore REST + the caller's ID token. Email copy always spells the brand as **AIra** (ASCII).
+Without Resend or SMTP, signup still works; welcome mail returns 503. Without a service account, branded verification falls back to Firebase default mail. Email copy always spells the brand as **AIra** (ASCII).
 
-Backfill pending test accounts: `node scripts/backfill-welcome-email.mjs` (requires Admin JSON + Resend).
+Backfill pending test accounts: `node scripts/backfill-welcome-email.mjs` (requires Admin JSON + Resend or SMTP).
 
 ## Post-auth navigation
 - student → always `/student/mode-selection` (Mode Selection)

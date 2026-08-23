@@ -12,10 +12,15 @@ export async function sendVerificationEmail(input: SendVerificationInput): Promi
     name: input.name,
     verifyUrl: input.verifyUrl,
   })
-  await sendTransactionalEmail({
+  const result = await sendTransactionalEmail({
     to: input.to,
     subject: template.subject,
     text: template.text,
     html: template.html,
+  })
+  console.info('[verify-email] delivered', {
+    provider: result.provider,
+    messageId: result.messageId,
+    usedFallback: result.usedFallback ?? false,
   })
 }

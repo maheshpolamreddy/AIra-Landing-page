@@ -2,10 +2,11 @@ import { getEmailDiagnostics } from '@/lib/email/send-transactional'
 
 export const runtime = 'nodejs'
 
+/** Unified email diagnostics (no secrets). */
 export async function GET() {
-  const diagnostics = getEmailDiagnostics()
+  const email = getEmailDiagnostics()
   return Response.json({
-    ok: diagnostics.configured && diagnostics.canDeliverExternally,
-    ...diagnostics,
+    ok: email.canDeliverExternally,
+    ...email,
   })
 }

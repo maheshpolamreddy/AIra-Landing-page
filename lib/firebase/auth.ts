@@ -22,6 +22,21 @@ import { assertEmailQuality } from '@/lib/email-quality'
 import { clearRoleHint } from '@/lib/session-hints'
 
 const PROD_LANDING = 'https://aira-landing-page-elite.vercel.app'
+const PROD_TUTOR_HOSTS = ['ai-ra-app.vercel.app', 'localhost:5173', '127.0.0.1:5173']
+
+/** Landing owns transactional email APIs; tutor standalone host does not. */
+function emailApiUrl(path: string): string {
+  if (typeof window === 'undefined') return path
+  const origin = window.location.origin.replace(/\/$/, '')
+  const onTutorHost = PROD_TUTOR_HOSTS.some((h) => origin.includes(h))
+  if (!onTutorHost) return path
+  const landing =
+    (typeof process !== 'undefined' &&
+      (process.env.NEXT_PUBLIC_SITE_URL as string | undefined)?.replace(/\/$/, '')) ||
+    PROD_LANDING
+  if (origin.includes('5173')) return `http://localhost:3000${path}`
+  return `${landing}${path}`
+}
 
 /** Password accounts must click the inbox link; OAuth providers already verified the mailbox. */
 export function needsEmailVerification(user: User | null | undefined): boolean {
@@ -47,7 +62,7 @@ async function requestVerificationEmail(user: User, name?: string): Promise<void
 
   try {
     const idToken = await user.getIdToken()
-    const res = await fetch('/api/auth/send-verification', {
+    const res = await fetch(emailApiUrl('/api/auth/send-verification'), {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${idToken}`,
@@ -84,7 +99,12 @@ async function requestVerificationEmail(user: User, name?: string): Promise<void
     }
 
     console.warn('[auth] verification API failed', res.status, payload.code || payload.error)
-    throw new Error(payload.error || 'Could not send verification email.')
+    // Prefer Firebase default over blocking signup when branded send fails
+    console.warn('[auth] falling back to Firebase default verification email')
+    await sendEmailVerification(user, {
+      url: verificationContinueUrl(),
+      handleCodeInApp: false,
+    })
   } catch (err) {
     if (err instanceof Error && err.message.includes('wait')) throw err
     console.warn('[auth] verification request failed; trying Firebase default', err)
@@ -146,7 +166,7 @@ export async function requestWelcomeEmail(user: User, name?: string): Promise<vo
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 15_000)
     try {
-      const res = await fetch('/api/welcome', {
+      const res = await fetch(emailApiUrl('/api/welcome'), {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${idToken}`,

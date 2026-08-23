@@ -1,4 +1,4 @@
-import { isEmailConfigured, resolveEmailProvider } from '@/lib/email/send-transactional'
+import { getEmailDiagnostics } from '@/lib/email/send-transactional'
 
 export const runtime = 'nodejs'
 
@@ -18,13 +18,19 @@ export async function GET() {
     adminError = err instanceof Error ? err.message : 'import_failed'
   }
 
-  const emailConfigured = isEmailConfigured()
+  const email = getEmailDiagnostics()
 
   return Response.json({
-    ok: emailConfigured && adminConfigured,
+    ok: email.canDeliverExternally && adminConfigured,
     admin: adminConfigured,
-    email: emailConfigured,
-    provider: resolveEmailProvider(),
+    email: email.configured,
+    canDeliverExternally: email.canDeliverExternally,
+    provider: email.provider,
+    from: email.from,
+    sandboxFrom: email.sandboxFrom,
+    resendConfigured: email.resendConfigured,
+    smtpConfigured: email.smtpConfigured,
+    warning: email.warning,
     hasCredentials,
     credentialsLength,
     adminError,

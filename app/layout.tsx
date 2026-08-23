@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/components/auth-provider'
 import { AuthDomainGuard } from '@/components/auth-domain-guard'
+import { AnalyticsPageReporter } from '@/components/analytics-page-reporter'
 import './globals.css'
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -53,7 +54,10 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased relative isolate" suppressHydrationWarning>
         <AuthDomainGuard />
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <AnalyticsPageReporter />
+          {children}
+        </AuthProvider>
         <Analytics />
       </body>
     </html>

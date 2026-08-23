@@ -11,6 +11,7 @@ import {
 import { onAuthStateChanged, type User } from 'firebase/auth'
 import { ensureAuthReady, initFirebaseAnalytics } from '@/lib/firebase/client'
 import { logOut as firebaseLogOut } from '@/lib/firebase/auth'
+import { analytics } from '@/lib/analytics'
 
 type AuthContextValue = {
   user: User | null
@@ -38,6 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           (next) => {
             setUser(next)
             setLoading(false)
+            if (next?.uid) {
+              void analytics.setUser(next.uid)
+            } else {
+              void analytics.clearUser()
+            }
           },
           (err) => {
             console.error('[auth] onAuthStateChanged error', err)

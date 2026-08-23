@@ -20,6 +20,7 @@ import { getAuthErrorCode, mapAuthError } from '@/lib/firebase/errors'
 import { normalizeAppRole, type AppRole } from '@/lib/auth-redirect'
 import { assertEmailQuality } from '@/lib/email-quality'
 import { clearRoleHint } from '@/lib/session-hints'
+import { analytics, type AuthMethod } from '@/lib/analytics'
 
 const PROD_LANDING = 'https://aira-landing-page-elite.vercel.app'
 const PROD_TUTOR_HOSTS = ['ai-ra-app.vercel.app', 'localhost:5173', '127.0.0.1:5173']
@@ -62,6 +63,7 @@ async function requestVerificationEmail(user: User, name?: string): Promise<void
 
   try {
     const idToken = await user.getIdToken()
+    const started = performance.now()
     const res = await fetch(emailApiUrl('/api/auth/send-verification'), {
       method: 'POST',
       headers: {
@@ -69,6 +71,12 @@ async function requestVerificationEmail(user: User, name?: string): Promise<void
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ name: displayName }),
+    })
+    analytics.apiPerformance({
+      endpointName: 'send_verification',
+      durationMs: Math.round(performance.now() - started),
+      statusCode: res.status,
+      success: res.ok,
     })
     const payload = (await res.json().catch(() => ({}))) as {
       ok?: boolean
@@ -80,6 +88,7 @@ async function requestVerificationEmail(user: User, name?: string): Promise<void
 
     if (res.ok && payload.sent) {
       console.info('[auth] branded verification email sent')
+      analytics.featureUsed('verification_email_sent')
       return
     }
 
@@ -166,6 +175,7 @@ export async function requestWelcomeEmail(user: User, name?: string): Promise<vo
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 15_000)
     try {
+      const started = performance.now()
       const res = await fetch(emailApiUrl('/api/welcome'), {
         method: 'POST',
         headers: {
@@ -176,6 +186,12 @@ export async function requestWelcomeEmail(user: User, name?: string): Promise<vo
         signal: controller.signal,
         keepalive: true,
       })
+      analytics.apiPerformance({
+        endpointName: 'welcome',
+        durationMs: Math.round(performance.now() - started),
+        statusCode: res.status,
+        success: res.ok,
+      })
       const payload = (await res.json().catch(() => ({}))) as {
         ok?: boolean
         sent?: boolean
@@ -185,8 +201,14 @@ export async function requestWelcomeEmail(user: User, name?: string): Promise<vo
       }
       if (!res.ok) {
         console.warn('[auth] welcome email HTTP', res.status, payload.code || payload.error || '')
+        analytics.error({
+          errorArea: 'auth',
+          errorType: payload.code || 'welcome_failed',
+          severity: 'warning',
+        })
       } else if (payload.sent) {
         console.info('[auth] welcome email queued/sent', payload.code)
+        analytics.featureUsed('welcome_email_sent')
       } else if (payload.skipped) {
         console.info('[auth] welcome email skipped', payload.code)
       }
@@ -363,15 +385,25 @@ async function signInWithProviderPopup(
   provider: AuthProvider,
   providerKey: string,
 ): Promise<UserCredential> {
-  // Must stay synchronous up to signInWithPopup so the browser keeps the user gesture
-  // (awaiting before the popup causes silent popup blocking).
+  const method = (['google', 'apple', 'microsoft'].includes(providerKey)
+    ? providerKey
+    : 'unknown') as AuthMethod
+  analytics.loginStarted(method)
   const auth = getFirebaseAuth()
   try {
     const cred = await signInWithPopup(auth, provider)
-    return await upsertOAuthProfile(cred, providerKey)
+    const isNewUser = getAdditionalUserInfo(cred)?.isNewUser === true
+    const result = await upsertOAuthProfile(cred, providerKey)
+    if (isNewUser) {
+      analytics.signUp(method)
+    } else {
+      analytics.login(method)
+    }
+    void analytics.setUser(cred.user.uid)
+    return result
   } catch (err) {
     const code = getAuthErrorCode(err)
-    // Avoid logging the Error object — Next.js surfaces that as a Console Error overlay.
+    analytics.loginFailed(method, code || 'unknown')
     console.warn(`[auth] ${providerKey} sign-in failed:`, code || 'unknown')
     throw new Error(mapAuthError(err, providerKey))
   }
@@ -382,6 +414,7 @@ export async function signUpWithEmail(
 ): Promise<UserCredential> {
   const email = assertEmailQuality(input.email)
   const auth = await ensureAuthReady()
+  analytics.signupStarted('email')
   try {
     const cred = await createUserWithEmailAndPassword(
       auth,
@@ -417,8 +450,14 @@ export async function signUpWithEmail(
         getAuthErrorCode(welcomeErr) || 'unknown',
       )
     }
+    analytics.signUp('email')
+    void analytics.setUser(cred.user.uid)
+    const role =
+      normalizeAppRole(input.role) === 'admin' ? 'student' : normalizeAppRole(input.role)
+    void analytics.setUserProperties({ user_role: role || 'student' })
     return cred
   } catch (err) {
+    analytics.signupFailed('email', getAuthErrorCode(err) || 'unknown')
     console.warn('[auth] email signup failed:', getAuthErrorCode(err) || 'unknown')
     throw new Error(mapAuthError(err))
   }
@@ -430,9 +469,14 @@ export async function signInWithEmail(
 ): Promise<UserCredential> {
   const normalized = assertEmailQuality(email)
   const auth = await ensureAuthReady()
+  analytics.loginStarted('email')
   try {
-    return await signInWithEmailAndPassword(auth, normalized, password)
+    const cred = await signInWithEmailAndPassword(auth, normalized, password)
+    analytics.login('email')
+    void analytics.setUser(cred.user.uid)
+    return cred
   } catch (err) {
+    analytics.loginFailed('email', getAuthErrorCode(err) || 'unknown')
     console.warn('[auth] email sign-in failed:', getAuthErrorCode(err) || 'unknown')
     throw new Error(mapAuthError(err))
   }
@@ -477,7 +521,10 @@ export async function logOut(): Promise<void> {
   const auth = await ensureAuthReady()
   try {
     await signOut(auth)
+    analytics.logout()
   } catch (err) {
+    console.warn('[auth] logout failed:', getAuthErrorCode(err) || 'unknown')
+    analytics.logout()
     throw new Error(mapAuthError(err))
   } finally {
     // Drop the role hint even if sign-out threw, so the next person on this

@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { analytics } from '@/lib/analytics'
 
 type WaitlistModalProps = {
   open: boolean
@@ -37,10 +38,17 @@ export function WaitlistModal({
     setLoading(true)
 
     try {
+      const started = performance.now()
       const res = await fetch('/api/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, courseId, courseName }),
+      })
+      analytics.apiPerformance({
+        endpointName: 'waitlist',
+        durationMs: Math.round(performance.now() - started),
+        statusCode: res.status,
+        success: res.ok,
       })
 
       if (!res.ok) {
@@ -50,6 +58,7 @@ export function WaitlistModal({
         throw new Error(data?.error ?? 'Something went wrong')
       }
 
+      analytics.featureUsed('waitlist_join')
       setDone(true)
     } catch (err) {
       setError(

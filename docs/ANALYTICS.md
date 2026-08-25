@@ -26,8 +26,25 @@ user_role, selected_mode, teaching_style, preferred_language, content_source_las
 
 1. Confirm Analytics enabled for web app with measurement ID `G-9FT49STZ0P`.  
 2. Register custom dimensions listed in tutor `docs/ANALYTICS.md`.  
-3. Open DebugView; set `NEXT_PUBLIC_ANALYTICS_DEBUG=true` for localhost.  
-4. Verify sign_up / login appear within ~1 minute in DebugView.  
+3. DebugView requires **gtag config** `debug_mode: true` (code does this when `NEXT_PUBLIC_ANALYTICS_DEBUG=true` or `NODE_ENV=development`), or the Google Analytics Debugger Chrome extension. Event-only `debug_mode` is not enough.  
+4. Restart Next after setting `.env.local`, open Console for `[analytics] …`, then confirm `app_debug_test` / `login` in DebugView.  
+5. Do **not** set `NEXT_PUBLIC_ANALYTICS_DEBUG` on Vercel production.  
+
+## Admin Product Analytics API
+
+`GET /api/admin/analytics?preset=7d` (admin Bearer token or local content-bridge header).
+
+Requires:
+
+- `GA4_PROPERTY_ID=546252206`  
+- `FIREBASE_SERVICE_ACCOUNT_JSON` with **Analytics Viewer** on that property  
+
+Local check: `node scripts/ga4-data-api-check.mjs`  
+
+Grant Viewer to: `firebase-adminsdk-fbsvc@aira-landingpage.iam.gserviceaccount.com`  
+(Google Analytics → Admin → Property access management)
+
+Returns KPIs, timeseries, pages, events, funnel, devices, geo, realtime. Tutor UI: `/admin/analytics`.
 
 ## Page performance
 

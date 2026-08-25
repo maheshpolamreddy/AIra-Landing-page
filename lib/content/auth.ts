@@ -16,12 +16,14 @@ export function bridgeOk(secret: string | null | undefined): boolean {
   return Boolean(expected) && Boolean(secret) && secret === expected
 }
 
-async function getUserRole(uid: string): Promise<'student' | 'admin'> {
+async function resolveUserRole(uid: string, tokenRole?: string): Promise<'student' | 'admin'> {
+  if (tokenRole === 'admin') return 'admin'
   try {
     const snap = await getAdminFirestore().collection('users').doc(uid).get()
     const role = snap.data()?.role
     return role === 'admin' ? 'admin' : 'student'
-  } catch {
+  } catch (err) {
+    console.warn('[auth] resolveUserRole failed', err instanceof Error ? err.message : 'unknown')
     return 'student'
   }
 }
@@ -40,7 +42,7 @@ export async function requireAuth(req: NextRequest, adminOnly = false): Promise<
 
   try {
     const decoded = await verifyIdToken(token)
-    const role = await getUserRole(decoded.uid)
+    const role = await resolveUserRole(decoded.uid, decoded.role)
     if (adminOnly && role !== 'admin') {
       return { ok: false, status: 403, error: 'Admin access required' }
     }

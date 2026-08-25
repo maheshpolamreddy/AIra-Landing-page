@@ -20,6 +20,8 @@ export type VerifiedIdToken = {
   uid: string
   email?: string
   name?: string
+  /** From Firebase custom claim `role`, when set. */
+  role?: string
 }
 
 function hasServiceAccountCredentials(): boolean {
@@ -216,10 +218,12 @@ export async function verifyIdToken(idToken: string): Promise<VerifiedIdToken> {
   if (hasServiceAccountCredentials()) {
     try {
       const decoded = await getAuth(getAdminApp()).verifyIdToken(idToken)
+      const roleClaim = (decoded as Record<string, unknown>).role
       return {
         uid: decoded.uid,
         email: decoded.email,
         name: typeof decoded.name === 'string' ? decoded.name : undefined,
+        role: typeof roleClaim === 'string' ? roleClaim : undefined,
       }
     } catch (err) {
       console.warn(

@@ -3,7 +3,17 @@
 import { Suspense, useState, useEffect, useRef, type FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react'
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  ArrowLeft,
+  ArrowRight,
+  User,
+  Mail,
+  Calendar,
+  Lock,
+} from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SocialLogin } from '@/components/social-login'
@@ -12,9 +22,13 @@ import {
   AuthShell,
   authInputClassName,
   authLabelClassName,
-  authPrimaryBtnClassName,
+  authAccentBtnClassName,
 } from '@/components/auth-shell'
-import { resolveRoleForRedirect, signUpWithEmail, needsEmailVerification } from '@/lib/firebase/auth'
+import {
+  resolveRoleForRedirect,
+  signUpWithEmail,
+  needsEmailVerification,
+} from '@/lib/firebase/auth'
 import { useAuth } from '@/components/auth-provider'
 import { readRoleHint, writeRoleHint } from '@/lib/session-hints'
 import {
@@ -28,8 +42,8 @@ import { navigateAfterAuth, navigateToLanding } from '@/lib/navigation'
 
 function SignupFallback() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--neutral-50)]">
-      <Loader2 className="size-6 animate-spin text-muted-foreground" />
+    <div className="flex min-h-screen items-center justify-center bg-[#060912]">
+      <Loader2 className="size-6 animate-spin text-sky-300" />
     </div>
   )
 }
@@ -45,14 +59,16 @@ export default function SignupPage() {
 function SignupPageContent() {
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get('redirect')
+  const intent = searchParams.get('intent')
   const { user, loading: authLoading } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [dob, setDob] = useState('')
-  const [role, setRole] = useState<AppRole>('student')
+  const role: AppRole = 'student'
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -62,11 +78,9 @@ function SignupPageContent() {
       explicitRole ?? (await resolveRoleForRedirect(uid, readRoleHint())),
     )
     writeRoleHint(resolved)
-    const dest = resolvePostAuthPath({
-      redirect: redirectParam,
-      role: resolved,
-    })
-    navigateAfterAuth(dest)
+    navigateAfterAuth(
+      resolvePostAuthPath({ redirect: redirectParam, role: resolved }),
+    )
   }
 
   useEffect(() => {
@@ -107,7 +121,7 @@ function SignupPageContent() {
 
     setLoading(true)
     try {
-      await signUpWithEmail({
+      const result = await signUpWithEmail({
         name,
         email: emailCheck.email,
         password,
@@ -115,7 +129,12 @@ function SignupPageContent() {
         role,
       })
       writeRoleHint(normalizeAppRole(role))
-      navigateToLanding(getVerifyEmailPath(redirectParam))
+      const verifyPath = getVerifyEmailPath(redirectParam)
+      if (result.verificationEmailSent === false) {
+        navigateToLanding(`${verifyPath}&verificationPending=1`)
+      } else {
+        navigateToLanding(verifyPath)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create account.')
     } finally {
@@ -128,181 +147,224 @@ function SignupPageContent() {
 
   return (
     <AuthShell
-      panelHeadline="Create your account"
-      panelSupport="Join learners using Aɪra for JEE, NEET, and career skills — personalized to how you learn."
+      panelHeadline={
+        <>
+          Start Your{' '}
+          <span className="bg-gradient-to-r from-[#7dd3fc] to-[#22d3ee] bg-clip-text text-transparent">
+            Excellence
+          </span>{' '}
+          Journey
+        </>
+      }
+      panelSupport="Join the elite community of students mastering subjects with our advanced AI tutor."
     >
-      <div className="mb-6">
-        <h2 className="text-xl font-bold tracking-tight text-foreground">
-          Create account
+      <div className="mb-5">
+        <h2 className="text-[1.7rem] font-bold tracking-tight text-slate-900">
+          Create Account
         </h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Start free. No credit card required.
-        </p>
+        <p className="mt-1 text-sm text-slate-500">Join 50k+ success stories</p>
       </div>
 
-      <form onSubmit={handleSignup} className="space-y-4">
+      <form onSubmit={handleSignup} className="space-y-3">
         <div className="space-y-1.5">
           <Label htmlFor="name" className={authLabelClassName}>
-            Full name
+            Full Name
           </Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Your full name"
-            required
-            autoComplete="name"
-            className={authInputClassName}
-          />
+          <div className="relative">
+            <User
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400"
+              aria-hidden
+            />
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex: Rajesh Kumar"
+              required
+              autoComplete="name"
+              className={`${authInputClassName} pl-10`}
+            />
+          </div>
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="email" className={authLabelClassName}>
-            Email
+            Email Address
           </Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="name@example.com"
-            required
-            autoComplete="email"
-            className={authInputClassName}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="role" className={authLabelClassName}>
-            I am a
-          </Label>
-          <select
-            id="role"
-            value={role}
-            onChange={(e) => setRole(normalizeAppRole(e.target.value))}
-            className={authInputClassName}
-            required
-          >
-            <option value="student">Student</option>
-            <option value="teacher">Teacher</option>
-          </select>
+          <div className="relative">
+            <Mail
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400"
+              aria-hidden
+            />
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@email.com"
+              required
+              autoComplete="email"
+              className={`${authInputClassName} pl-10`}
+            />
+          </div>
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="dob" className={authLabelClassName}>
-            Date of birth
-          </Label>
-          <Input
-            id="dob"
-            type="date"
-            value={dob}
-            onChange={(e) => setDob(e.target.value)}
-            required
-            className={authInputClassName}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="password" className={authLabelClassName}>
-            Password
+            Date of Birth
           </Label>
           <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Create a password"
-              required
-              autoComplete="new-password"
-              className={`${authInputClassName} pr-10`}
+            <Calendar
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400"
+              aria-hidden
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-            >
-              {showPassword ? (
-                <EyeOff className="size-4 stroke-[1.75]" />
-              ) : (
-                <Eye className="size-4 stroke-[1.75]" />
-              )}
-            </button>
+            <Input
+              id="dob"
+              type="date"
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+              required
+              className={`${authInputClassName} pr-10 pl-10`}
+            />
+            <Calendar
+              className="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2 text-slate-400"
+              aria-hidden
+            />
           </div>
-          <PasswordStrength password={password} />
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="confirm-password" className={authLabelClassName}>
-            Confirm password
-          </Label>
-          <Input
-            id="confirm-password"
-            type={showPassword ? 'text' : 'password'}
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Confirm your password"
-            required
-            autoComplete="new-password"
-            className={authInputClassName}
-          />
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className={authLabelClassName}>
+              Password
+            </Label>
+            <div className="relative">
+              <Lock
+                className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-slate-400"
+                aria-hidden
+              />
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Security"
+                required
+                autoComplete="new-password"
+                className={`${authInputClassName} pr-9 pl-9`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute top-1/2 right-2.5 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <EyeOff className="size-3.5 stroke-[1.75]" />
+                ) : (
+                  <Eye className="size-3.5 stroke-[1.75]" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="confirm-password" className={authLabelClassName}>
+              Confirm
+            </Label>
+            <div className="relative">
+              <Lock
+                className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-slate-400"
+                aria-hidden
+              />
+              <Input
+                id="confirm-password"
+                type={showConfirm ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm"
+                required
+                autoComplete="new-password"
+                className={`${authInputClassName} pr-9 pl-9`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm((v) => !v)}
+                className="absolute top-1/2 right-2.5 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                aria-label={showConfirm ? 'Hide password' : 'Show password'}
+              >
+                {showConfirm ? (
+                  <EyeOff className="size-3.5 stroke-[1.75]" />
+                ) : (
+                  <Eye className="size-3.5 stroke-[1.75]" />
+                )}
+              </button>
+            </div>
+          </div>
         </div>
+
+        <PasswordStrength password={password} />
 
         {error && (
-          <p role="alert" className="text-sm font-medium text-[var(--error)]">
+          <p role="alert" className="text-sm font-medium text-rose-600">
             {error}
           </p>
         )}
 
-        <button type="submit" disabled={loading} className={authPrimaryBtnClassName}>
+        <button type="submit" disabled={loading} className={authAccentBtnClassName}>
           {loading ? (
             <span className="inline-flex items-center gap-2">
               <Loader2 className="size-4 animate-spin" aria-hidden />
               Creating…
             </span>
           ) : (
-            'Create account'
+            <>
+              Get Started
+              <ArrowRight className="size-4 stroke-[2.25]" aria-hidden />
+            </>
           )}
         </button>
       </form>
 
-      <div className="relative my-6">
+      <div className="relative my-4">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border" />
+          <div className="w-full border-t border-slate-200" />
         </div>
-        <div className="relative flex justify-center text-xs text-muted-foreground">
-          <span className="bg-card px-3">or</span>
+        <div className="relative flex justify-center text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase">
+          <span className="bg-white px-3">Fast Enrollment</span>
         </div>
       </div>
 
       <SocialLogin
         onError={setError}
         onSignedIn={async (uid) => {
-          await goAfterAuth(uid)
+          writeRoleHint(normalizeAppRole(role))
+          await goAfterAuth(uid, normalizeAppRole(role))
         }}
       />
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
-        Already have an account?{' '}
+      <p className="mt-4 text-center text-sm text-slate-500">
+        Already an achiever?{' '}
         <Link
-          href={
-            redirectParam
-              ? `/login?redirect=${encodeURIComponent(redirectParam)}`
-              : '/login'
-          }
-          className="font-medium text-primary underline-offset-4 hover:underline"
+          href={(() => {
+            const params = new URLSearchParams()
+            if (redirectParam) params.set('redirect', redirectParam)
+            if (intent) params.set('intent', intent)
+            const q = params.toString()
+            return q ? `/login?${q}` : '/login'
+          })()}
+          className="font-semibold text-[#22d3ee] hover:underline"
         >
-          Sign in
+          Login here
         </Link>
       </p>
 
       <Link
         href="/"
-        className="mt-6 flex items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        className="mt-3 flex items-center justify-center gap-1.5 text-sm text-slate-400 hover:text-slate-600"
       >
         <ArrowLeft className="size-3.5 stroke-[1.75]" aria-hidden />
-        Back to home
+        Back to gateway
       </Link>
     </AuthShell>
   )

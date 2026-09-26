@@ -23,12 +23,23 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const pathname = usePathname()
+  const [navPath, setNavPath] = useState(pathname)
   const isHome = pathname === '/'
   const { user, loading: authLoading, logOut } = useAuth()
 
-  useEffect(() => {
+  if (navPath !== pathname) {
+    setNavPath(pathname)
     setMobileOpen(false)
-  }, [pathname])
+  }
+
+  useEffect(() => {
+    if (!mobileOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [mobileOpen])
 
   const hashHref = (hash: string) => (isHome ? hash : `/${hash}`)
 
@@ -103,7 +114,12 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {!authLoading && user ? (
+          {authLoading ? (
+            <div
+              className="hidden h-8 w-24 animate-pulse rounded-[var(--radius-btn)] bg-muted sm:block"
+              aria-hidden
+            />
+          ) : user ? (
             <UserProfileMenu
               user={user}
               onLogOut={handleLogOut}
@@ -120,7 +136,7 @@ export function Header() {
               </Button>
               <Button
                 size="sm"
-                className="hidden rounded-[var(--radius-btn)] bg-accent text-accent-foreground hover:bg-accent/90 sm:inline-flex"
+                className="hidden rounded-[var(--radius-btn)] bg-primary text-primary-foreground hover:bg-[var(--primary-hover)] sm:inline-flex"
                 asChild
               >
                 <AuthEntryLink href={CTAS.primary.href}>{CTAS.primary.label}</AuthEntryLink>
@@ -187,7 +203,9 @@ export function Header() {
               {EXTERNAL.professionals.label}
             </AudienceNavLink>
             <div className="mt-2 flex flex-col gap-2 border-t border-border pt-3 sm:hidden">
-              {!authLoading && user ? (
+              {authLoading ? (
+                <div className="h-10 animate-pulse rounded-[var(--radius-btn)] bg-muted" aria-hidden />
+              ) : user ? (
                 <div className="px-1 py-1">
                   <UserProfileMenu user={user} onLogOut={handleLogOut} />
                 </div>
@@ -206,7 +224,7 @@ export function Header() {
                     </AuthEntryLink>
                   </Button>
                   <Button
-                    className="rounded-[var(--radius-btn)] bg-accent text-accent-foreground hover:bg-accent/90"
+                    className="rounded-[var(--radius-btn)] bg-primary text-primary-foreground hover:bg-[var(--primary-hover)]"
                     asChild
                   >
                     <AuthEntryLink

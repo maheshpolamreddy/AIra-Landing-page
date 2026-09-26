@@ -1,8 +1,14 @@
 import type { SupportedLanguage } from './types'
 
-const V2_SPEAKERS = new Set([
-  'anushka', 'abhilash', 'manisha', 'vidya', 'arya', 'karun', 'hitesh',
-])
+const V2_TO_V3: Record<string, string> = {
+  anushka: 'priya',
+  manisha: 'neha',
+  vidya: 'kavya',
+  arya: 'ritu',
+  abhilash: 'aditya',
+  karun: 'rahul',
+  hitesh: 'shubh',
+}
 const V3_SPEAKERS = new Set([
   'aditya', 'ritu', 'priya', 'neha', 'rahul', 'pooja', 'rohan', 'simran',
 ])
@@ -18,10 +24,6 @@ const LANG_SPEAKER_MAP: Record<string, { speaker: string; lang: string }> = {
 function normalizeLanguage(language: string): string {
   const raw = language.trim().replace('_', '-')
   return LANG_SPEAKER_MAP[raw]?.lang || LANG_SPEAKER_MAP[raw.split('-')[0]]?.lang || 'en-IN'
-}
-
-function modelForSpeaker(speaker: string): string {
-  return V3_SPEAKERS.has(speaker) ? 'bulbul:v3' : 'bulbul:v2'
 }
 
 /** Parse duration in seconds from a PCM WAV buffer. */
@@ -104,8 +106,8 @@ export async function synthesizeSegmentAudio(
   if (!apiKey) throw new Error('SARVAM_API_KEY not configured')
 
   const lang = normalizeLanguage(language)
-  const spk = V2_SPEAKERS.has(speaker) || V3_SPEAKERS.has(speaker) ? speaker : 'pooja'
-  const model = modelForSpeaker(spk)
+  const mapped = V2_TO_V3[speaker] || speaker
+  const spk = V3_SPEAKERS.has(mapped) ? mapped : 'pooja'
 
   const res = await fetch('https://api.sarvam.ai/text-to-speech', {
     method: 'POST',
@@ -114,12 +116,13 @@ export async function synthesizeSegmentAudio(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      inputs: [trimmed],
+      text: trimmed,
       target_language_code: lang,
       speaker: spk,
-      model,
+      model: 'bulbul:v3',
       speech_sample_rate: 22050,
       pace: speed,
+      output_audio_codec: 'wav',
     }),
   })
 

@@ -6,14 +6,59 @@ import {
   connectAuthEmulator,
   type Auth,
 } from 'firebase/auth'
-import { getAnalytics, isSupported, type Analytics } from 'firebase/analytics'
+import {
+  getAnalytics,
+  initializeAnalytics,
+  isSupported,
+  type Analytics,
+} from 'firebase/analytics'
 import { getFirebaseApp } from '@/lib/firebase/app'
+import { firebaseConfig } from '@/lib/firebase/config'
 
 export { getFirebaseApp, getFirebaseDb } from '@/lib/firebase/app'
 
 let auth: Auth | undefined
 let analytics: Analytics | undefined
 let emulatorConnected = false
+let gtagDebugConfigured = false
+
+type GtagFn = (...args: unknown[]) => void
+
+function analyticsDebugEnabled(): boolean {
+  return (
+    process.env.NODE_ENV === 'development' ||
+    String(process.env.NEXT_PUBLIC_ANALYTICS_DEBUG || '').toLowerCase() === 'true'
+  )
+}
+
+function safeInitErrorCategory(err: unknown): string {
+  if (err instanceof Error) return (err.name || 'Error').slice(0, 40)
+  return 'init_failed'
+}
+
+/**
+ * Firebase web DebugView requires gtag config debug_mode (or Chrome extension).
+ * Event-param debug_mode alone is not enough for Debug Device count.
+ */
+function enableGtagDebugMode(measurementId: string): void {
+  if (typeof window === 'undefined' || !measurementId || gtagDebugConfigured) return
+  const w = window as Window & { gtag?: GtagFn }
+  const apply = (): boolean => {
+    if (typeof w.gtag !== 'function') return false
+    w.gtag('config', measurementId, { debug_mode: true })
+    gtagDebugConfigured = true
+    if (analyticsDebugEnabled()) {
+      console.info('[analytics] gtag debug_mode config applied')
+    }
+    return true
+  }
+  if (apply()) return
+  let attempts = 0
+  const timer = window.setInterval(() => {
+    attempts += 1
+    if (apply() || attempts >= 30) window.clearInterval(timer)
+  }, 100)
+}
 
 function connectEmulatorIfConfigured(authInstance: Auth) {
   if (emulatorConnected || typeof window === 'undefined') return
@@ -74,13 +119,58 @@ export async function ensureAuthReady(): Promise<Auth> {
 
 export async function initFirebaseAnalytics(): Promise<Analytics | null> {
   if (typeof window === 'undefined') return null
-  if (analytics) return analytics
-  try {
-    const supported = await isSupported()
-    if (!supported) return null
-    analytics = getAnalytics(getFirebaseApp())
+  const wantDebug = analyticsDebugEnabled()
+  if (analytics) {
+    if (wantDebug && firebaseConfig.measurementId) {
+      enableGtagDebugMode(firebaseConfig.measurementId)
+    }
     return analytics
-  } catch {
+  }
+  try {
+    if (wantDebug) {
+      console.info('[analytics] Firebase Analytics initialization started')
+      console.info(
+        '[analytics] debug mode:',
+        true,
+        '| NEXT_PUBLIC_ANALYTICS_DEBUG=',
+        String(process.env.NEXT_PUBLIC_ANALYTICS_DEBUG || ''),
+        '| NODE_ENV=',
+        String(process.env.NODE_ENV),
+      )
+    }
+    const supported = await isSupported()
+    if (wantDebug) console.info('[analytics] isSupported:', supported)
+    if (!supported) {
+      if (wantDebug) console.warn('[analytics] Analytics initialized: false')
+      return null
+    }
+
+    const app = getFirebaseApp()
+    try {
+      if (wantDebug) {
+        analytics = initializeAnalytics(app, {
+          config: { debug_mode: true },
+        })
+      } else {
+        analytics = getAnalytics(app)
+      }
+    } catch {
+      analytics = getAnalytics(app)
+    }
+
+    if (wantDebug && firebaseConfig.measurementId) {
+      enableGtagDebugMode(firebaseConfig.measurementId)
+    }
+
+    if (wantDebug) {
+      console.info('[analytics] Analytics initialized:', !!analytics)
+      console.info('[analytics] debug mode:', true)
+    }
+    return analytics
+  } catch (err) {
+    if (wantDebug) {
+      console.warn('[analytics] Analytics initialized: false', safeInitErrorCategory(err))
+    }
     return null
   }
 }

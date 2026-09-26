@@ -10,7 +10,7 @@ import {
 } from 'react'
 import { onAuthStateChanged, type User } from 'firebase/auth'
 import { ensureAuthReady, initFirebaseAnalytics } from '@/lib/firebase/client'
-import { logOut as firebaseLogOut } from '@/lib/firebase/auth'
+import { logOut as firebaseLogOut, reloadCurrentUser } from '@/lib/firebase/auth'
 import { analytics } from '@/lib/analytics'
 
 type AuthContextValue = {
@@ -18,6 +18,7 @@ type AuthContextValue = {
   loading: boolean
   isAuthenticated: boolean
   logOut: () => Promise<void>
+  refreshUser: () => Promise<User | null>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -67,6 +68,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!user,
       logOut: async () => {
         await firebaseLogOut()
+      },
+      refreshUser: async () => {
+        const next = await reloadCurrentUser()
+        setUser(next)
+        return next
       },
     }),
     [user, loading],

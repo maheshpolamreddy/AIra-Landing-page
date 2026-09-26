@@ -11,13 +11,6 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
-const V2_SPEAKERS = new Set(['anushka', 'abhilash', 'manisha', 'vidya', 'arya', 'karun', 'hitesh'])
-const V3_SPEAKERS = new Set(['pooja', 'ritu', 'priya', 'neha', 'rahul'])
-
-function modelForSpeaker(speaker: string): string {
-  return V3_SPEAKERS.has(speaker) ? 'bulbul:v3' : 'bulbul:v2'
-}
-
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req)
   if (!auth.ok) {
@@ -53,12 +46,13 @@ export async function POST(req: NextRequest) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      inputs: [text],
+      text,
       target_language_code: language,
       speaker,
-      model: modelForSpeaker(speaker),
+      model: 'bulbul:v3',
       speech_sample_rate: 22050,
       pace: 1.0,
+      output_audio_codec: 'wav',
     }),
   })
 

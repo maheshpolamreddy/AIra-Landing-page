@@ -11,6 +11,7 @@ export const REQUIRED_AUTH_DOMAINS = [
   `${FIREBASE_PROJECT_ID}.web.app`,
   // Production & preview deployments
   'aira-landing-page-elite.vercel.app',
+  'ai-ra-app.vercel.app',
   process.env.VERCEL_URL,
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/^https?:\/\//, '').replace(/\/.*$/, ''),
   process.env.NEXT_PUBLIC_VERCEL_URL,

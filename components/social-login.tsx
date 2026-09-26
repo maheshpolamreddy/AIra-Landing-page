@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AppleMark, GoogleMark, MicrosoftMark } from '@/components/brand-icons'
+import { authSocialBtnClassName } from '@/components/auth-shell'
 import {
   signInWithApple,
   signInWithGoogle,
@@ -14,31 +16,14 @@ type Provider = 'google' | 'apple' | 'microsoft'
 
 type SocialLoginProps = {
   onError?: (message: string) => void
-  /** Preferred: resolve destination after auth (role + redirect query). */
   onSignedIn?: (uid: string) => void | Promise<void>
-  /** Legacy absolute/relative path when onSignedIn is not provided. */
   redirectTo?: string
 }
 
-const btnClass =
-  'flex h-11 w-full items-center justify-center gap-3 rounded-[var(--radius-btn)] border border-border bg-card text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60'
-
-/** Providers that are fully configured in Firebase (client-visible flags). */
-function isProviderEnabled(provider: Provider): boolean {
-  const envKey =
-    provider === 'google'
-      ? 'NEXT_PUBLIC_AUTH_GOOGLE'
-      : provider === 'apple'
-        ? 'NEXT_PUBLIC_AUTH_APPLE'
-        : 'NEXT_PUBLIC_AUTH_MICROSOFT'
-
-  const raw = process.env[envKey]
-  if (raw === undefined || raw === '') {
-    return provider === 'google'
-  }
-  return raw === '1' || raw.toLowerCase() === 'true'
-}
-
+/**
+ * Reference screenshot social row: Google, Apple, Microsoft — always shown.
+ * Wired to real Firebase providers (not demo phone OTP).
+ */
 const PROVIDERS: Array<{
   id: Provider
   label: string
@@ -76,7 +61,6 @@ export function SocialLogin({
 }: SocialLoginProps) {
   const router = useRouter()
   const [busy, setBusy] = useState<Provider | null>(null)
-  const enabled = PROVIDERS.filter((p) => isProviderEnabled(p.id))
 
   const handle = (provider: Provider) => {
     if (busy) return
@@ -100,30 +84,28 @@ export function SocialLogin({
       })
       .catch((err: unknown) => {
         const message =
-          err instanceof Error
-            ? err.message
-            : 'Sign-in failed. Please try again.'
+          err instanceof Error ? err.message : 'Sign-in failed. Please try again.'
         onError?.(message)
       })
-      .finally(() => {
-        setBusy(null)
-      })
+      .finally(() => setBusy(null))
   }
 
-  if (enabled.length === 0) return null
-
   return (
-    <div className="grid w-full grid-cols-1 gap-3">
-      {enabled.map(({ id, label, busyLabel, Icon }) => (
+    <div className="grid w-full grid-cols-1 gap-2.5">
+      {PROVIDERS.map(({ id, label, busyLabel, Icon }) => (
         <Button
           key={id}
           type="button"
           variant="outline"
           disabled={!!busy}
           onClick={() => handle(id)}
-          className={btnClass}
+          className={authSocialBtnClassName}
         >
-          <Icon className="size-[18px] shrink-0" />
+          {busy === id ? (
+            <Loader2 className="size-[18px] shrink-0 animate-spin" aria-hidden />
+          ) : (
+            <Icon className="size-[18px] shrink-0" />
+          )}
           <span>{busy === id ? busyLabel : label}</span>
         </Button>
       ))}

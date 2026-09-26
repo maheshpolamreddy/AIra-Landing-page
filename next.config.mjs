@@ -31,6 +31,8 @@ const tutorDevRewrites = [
   // Tutor-only static namespace (must not collide with landing /images, /brand, etc.)
   { source: '/tutor-media/:path*', destination: `${TUTOR_DEV}/tutor-media/:path*` },
   { source: '/tutor-assets/:path*', destination: `${TUTOR_DEV}/tutor-assets/:path*` },
+  // PYQ cropped/original figures live in tutor public/pyq
+  { source: '/pyq/:path*', destination: `${TUTOR_DEV}/pyq/:path*` },
   // App routes
   { source: '/student', destination: `${TUTOR_DEV}/student` },
   { source: '/student/:path*', destination: `${TUTOR_DEV}/student/:path*` },

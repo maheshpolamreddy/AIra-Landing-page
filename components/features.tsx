@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import {
   useEffect,
   useId,
@@ -44,7 +43,7 @@ const FEATURES: FeatureItem[] = [
     description:
       'Comprehensive courses covering JEE, NEET, and more with expert-curated content.',
     iconClass: 'from-teal-600 to-teal-800',
-    videoUrl: '/videos/Curriculum_Mode_Video_Generation.mp4',
+    videoUrl: '/videos/Smart_Curriculum_Video_Generated.mp4',
   },
   {
     icon: Trophy,
@@ -52,7 +51,7 @@ const FEATURES: FeatureItem[] = [
     description:
       'Challenge yourself with timed tests and compete with peers on the leaderboard.',
     iconClass: 'from-amber-600 to-orange-700',
-    videoUrl: '/videos/Smart_Curriculum_Video_Generated.mp4',
+    videoUrl: '/videos/Curriculum_Mode_Video_Generation.mp4',
     // Crop edges where incidental source labels (e.g. "Biology") can bleed through
     mediaClass: 'scale-[1.18] object-[center_40%]',
   },
@@ -62,7 +61,7 @@ const FEATURES: FeatureItem[] = [
     description:
       'Get instant answers from AI tutors and experienced educators 24/7.',
     iconClass: 'from-sky-600 to-blue-800',
-    videoUrl: '/videos/AI_Generates_Video_Instantly.mp4',
+    videoUrl: '/videos/counselor.mp4',
   },
 ]
 
@@ -215,11 +214,13 @@ function LazyFeatureVideo({
   title,
   mediaClass,
   showMark,
+  poster,
 }: {
   src: string
   title: string
   mediaClass?: string
   showMark?: boolean
+  poster?: string
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const playingRef = useRef(false)
@@ -295,9 +296,17 @@ function LazyFeatureVideo({
   return (
     <div
       ref={hostRef}
-      className="group/media relative aspect-video w-full overflow-hidden bg-slate-900"
+      className="group/media relative aspect-video w-full overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950"
     >
-      {inView ? (
+      {!src ? (
+        <div
+          className="absolute inset-0 z-[2] flex items-center justify-center bg-slate-800 px-4 text-center text-xs text-slate-300"
+          role="img"
+          aria-label={`${title} preview unavailable`}
+        >
+          Preview unavailable
+        </div>
+      ) : inView ? (
         <video
           ref={videoRef}
           className={cn(
@@ -308,6 +317,7 @@ function LazyFeatureVideo({
           )}
           playsInline
           preload="metadata"
+          poster={poster}
           controls={playing}
           onPlay={() => setPlaying(true)}
           onEnded={handleEnded}
@@ -315,9 +325,20 @@ function LazyFeatureVideo({
         >
           <source src={src} type="video/mp4" />
         </video>
+      ) : poster ? (
+        // eslint-disable-next-line @next/next/no-img-element -- lightweight poster before lazy video mounts
+        <img
+          src={poster}
+          alt=""
+          className={cn(
+            'absolute inset-0 z-[1] h-full w-full object-cover',
+            mediaClass,
+          )}
+          aria-hidden
+        />
       ) : null}
 
-      {!playing ? (
+      {!playing && src ? (
         <>
           {!ready && !loadError ? (
             <div className="absolute inset-0 z-[2] bg-slate-800" aria-hidden />
@@ -356,101 +377,14 @@ function LazyFeatureVideo({
 }
 
 function HeroExplainerCard() {
-  const [playing, setPlaying] = useState(false)
-  const [loadError, setLoadError] = useState(false)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const { ref: hostRef, inView } = useInViewOnce<HTMLDivElement>()
-
-  const start = async () => {
-    const video = videoRef.current
-    if (!video || loadError) return
-
-    try {
-      await waitForVideoReady(video)
-      video.currentTime = 0
-      video.muted = false
-      await video.play()
-      setPlaying(true)
-    } catch {
-      try {
-        video.muted = true
-        await video.play()
-        setPlaying(true)
-      } catch {
-        setLoadError(true)
-      }
-    }
-  }
-
-  const onEnded = () => {
-    setPlaying(false)
-    if (videoRef.current) {
-      videoRef.current.pause()
-      videoRef.current.currentTime = 0
-    }
-  }
-
   return (
     <FeatureCardShell className="mx-auto mb-10 max-w-4xl md:mb-16">
-      <div
-        ref={hostRef}
-        className="group/media relative aspect-video w-full overflow-hidden bg-slate-900"
-      >
-        {inView ? (
-          <video
-            ref={videoRef}
-            className={cn(
-              'absolute inset-0 h-full w-full bg-black object-contain',
-              playing ? 'z-[3] opacity-100' : 'z-[1] opacity-0',
-            )}
-            controls={playing}
-            playsInline
-            preload="metadata"
-            poster="/images/explainer_poster.png"
-            onPlay={() => setPlaying(true)}
-            onEnded={onEnded}
-            onError={() => setLoadError(true)}
-          >
-            <source src="/videos/explainer.mp4" type="video/mp4" />
-          </video>
-        ) : null}
-
-        {!playing ? (
-          <>
-            <Image
-              src="/images/explainer_poster.png"
-              alt=""
-              fill
-              className="z-[2] object-cover object-top"
-              sizes="(max-width: 896px) 100vw, 896px"
-              priority={false}
-            />
-            <BrandDuotone />
-            <EdgeScrim />
-            <AiraMark />
-            {loadError ? (
-              <div className="absolute inset-0 z-[4] flex items-center justify-center bg-slate-900/80 px-4 text-center text-sm text-slate-200">
-                Video unavailable — try again later
-              </div>
-            ) : null}
-            <div
-              className="pointer-events-none absolute inset-0 z-[4] bg-slate-950/20 transition-colors duration-200 group-hover/media:bg-slate-950/35"
-              aria-hidden
-            />
-            <button
-              type="button"
-              onClick={start}
-              disabled={loadError}
-              className="absolute inset-0 z-[5] flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:cursor-not-allowed"
-              aria-label="Play Aɪra explainer video"
-            >
-              <GlassPlayButton size="lg" />
-            </button>
-          </>
-        ) : (
-          <AiraMark />
-        )}
-      </div>
+      <LazyFeatureVideo
+        src="/videos/explainer.mp4"
+        title="Meet Your Personal AI Instructor"
+        poster="/images/explainer_poster.png"
+        showMark
+      />
 
       <div className="bg-neutral-50 px-5 py-5 md:px-7 md:py-6">
         <p className="text-lg font-bold tracking-tight text-foreground md:text-xl">
@@ -458,7 +392,7 @@ function HeroExplainerCard() {
         </p>
         <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
           Learn how {BRAND.name} is transforming education through personalized
-          AI guidance — click play when you&apos;re ready to watch.
+          AI guidance.
         </p>
       </div>
     </FeatureCardShell>

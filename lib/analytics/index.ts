@@ -16,12 +16,22 @@ import {
 } from './types'
 
 let cached: Analytics | null | undefined
+let debugTestFired = false
 
 function debugEnabled(): boolean {
   return (
     process.env.NODE_ENV === 'development' ||
     String(process.env.NEXT_PUBLIC_ANALYTICS_DEBUG || '').toLowerCase() === 'true'
   )
+}
+
+function debugFlagExplicit(): boolean {
+  return String(process.env.NEXT_PUBLIC_ANALYTICS_DEBUG || '').toLowerCase() === 'true'
+}
+
+function safeErrorCategory(err: unknown): string {
+  if (err instanceof Error) return (err.name || 'Error').slice(0, 40)
+  return 'track_failed'
 }
 
 function schedule(fn: () => void): void {
@@ -55,16 +65,30 @@ export async function track(
     void (async () => {
       try {
         const instance = await getInstance()
-        if (!instance) return
+        if (!instance) {
+          if (debugEnabled()) console.warn('[analytics] event skipped (no instance):', event)
+          return
+        }
         const safe = sanitizeAnalyticsParams(params)
         if (debugEnabled()) safe.debug_mode = true
         logEvent(instance, event as string, safe)
-        if (debugEnabled()) console.info('[analytics]', event, safe)
+        if (debugEnabled()) console.info('[analytics] event:', event)
       } catch (err) {
-        if (debugEnabled()) console.warn('[analytics] track failed', event, err)
+        if (debugEnabled()) console.warn('[analytics] track failed', event, safeErrorCategory(err))
       }
     })()
   })
+}
+
+/**
+ * TEMPORARY — remove after DebugView verification.
+ * Only fires when development + NEXT_PUBLIC_ANALYTICS_DEBUG=true.
+ */
+export function fireTemporaryAnalyticsDebugTest(): void {
+  if (debugTestFired) return
+  if (!(process.env.NODE_ENV === 'development' && debugFlagExplicit())) return
+  debugTestFired = true
+  void track('app_debug_test', { source: 'landing', debug_test: true })
 }
 
 export async function setAnalyticsUser(uid: string | null): Promise<void> {

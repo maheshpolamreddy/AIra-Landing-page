@@ -17,3 +17,11 @@ node_modules/
 .DS_Store
 .vercel
 .env*.local
+
+# Local TTS smoke / debug
+.tmp-rumik-tts/
+.dev-audio/
+*.aira.bak.tsx
+*.monolith.bak.tsx
+*.tsbuildinfo
+

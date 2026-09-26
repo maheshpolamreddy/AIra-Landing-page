@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 import { SchoolLearning } from '@/components/school-learning'
 import { ProfessionalLearning } from '@/components/professional-learning'
 
@@ -87,8 +88,9 @@ export function Courses() {
           <Button
             size="lg"
             className="rounded-full bg-slate-900 px-8 py-6 text-lg text-white shadow-xl shadow-slate-900/20 transition-all hover:-translate-y-1 hover:bg-slate-800"
+            asChild
           >
-            Browse All Catalog
+            <Link href="/#courses">Browse All Catalog</Link>
           </Button>
         </div>
       </div>

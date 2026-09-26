@@ -29,7 +29,10 @@ export function BrandWordmark({
   )
 }
 
-/** Official Aɪra brand icon — Logo 2. */
+/**
+ * Official Aɪra brand icon — Logo 2.
+ * Uses the transparent mark so it does not render as a white image plate.
+ */
 export function BrandIcon({
   className,
   size = 40,
@@ -46,9 +49,19 @@ export function BrandIcon({
       width={size}
       height={size}
       priority={priority}
-      className={cn('object-contain select-none', className)}
+      className={cn(
+        'bg-transparent object-contain select-none [background:transparent]',
+        className,
+      )}
       draggable={false}
       aria-hidden
+      onError={(e) => {
+        const img = e.currentTarget
+        if (img.dataset.fallback === '1') return
+        img.dataset.fallback = '1'
+        img.srcset = ''
+        img.src = '/tutor-media/logos/aira-brand-icon.png'
+      }}
     />
   )
 }

@@ -41,12 +41,19 @@ export default function VerifyEmailPage() {
 function VerifyEmailContent() {
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get('redirect')
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, refreshUser } = useAuth()
   const [mounted, setMounted] = useState(false)
   const [busy, setBusy] = useState<'resend' | 'check' | 'other' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const continued = useRef(false)
+  const verificationPending = searchParams.get('verificationPending') === '1'
+
+  useEffect(() => {
+    if (verificationPending) {
+      setInfo('Your account was created, but we could not send the verification email. Use Resend below.')
+    }
+  }, [verificationPending])
 
   const goAfterAuth = useCallback(async (uid: string) => {
     const role = normalizeAppRole(await resolveRoleForRedirect(uid, readRoleHint()))
@@ -83,7 +90,7 @@ function VerifyEmailContent() {
     const id = window.setInterval(() => {
       void (async () => {
         try {
-          const next = await reloadCurrentUser()
+          const next = await refreshUser()
           if (next && !needsEmailVerification(next) && !continued.current) {
             continued.current = true
             await goAfterAuth(next.uid)

@@ -2,42 +2,83 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { BookOpen, Trophy, Headphones } from 'lucide-react'
-import { CTAS, STATS, HERO_TRUST, BRAND } from '@/lib/site'
+import { BookOpen, Trophy, Headphones, type LucideIcon } from 'lucide-react'
+import { CTAS, HERO_TRUST, BRAND } from '@/lib/site'
 import { AuthEntryLink } from '@/components/auth-entry-link'
 
-const floatingStats = [
+/**
+ * Elite-matched hero fold (height / stage mins) + soft radial vignette image
+ * (same as aira-landing-page-elite). No + grid background.
+ */
+const floatingCards: ReadonlyArray<{
+  icon: LucideIcon
+  title: string
+  subtitle: string
+  className: string
+  delay: string
+}> = [
   {
     icon: BookOpen,
-    value: STATS.coverage.value,
-    label: STATS.coverage.label,
-    position: 'top-6 left-0 sm:top-10 sm:-left-2 md:-left-4',
+    title: 'Grades 6–12',
+    subtitle: 'curriculum ready',
+    className: 'top-6 left-0 sm:top-10 sm:-left-2 md:-left-4',
     delay: '0s',
   },
   {
     icon: Trophy,
-    value: STATS.exams.value,
-    label: STATS.exams.label,
-    position: 'bottom-16 right-0 sm:bottom-20 sm:-right-2 md:-right-4',
+    title: 'JEE · NEET',
+    subtitle: 'exam prep',
+    className: 'bottom-16 right-0 sm:bottom-20 sm:-right-2 md:-right-4',
     delay: '0.4s',
   },
   {
     icon: Headphones,
-    value: STATS.support.value,
-    label: STATS.support.label,
-    position: 'top-1/2 -translate-y-1/2 -right-1 sm:right-0 md:-right-8 hidden sm:flex',
+    title: '24/7',
+    subtitle: 'AI support',
+    className:
+      'top-1/2 -translate-y-1/2 -right-1 sm:right-0 md:-right-8 hidden sm:flex',
     delay: '0.8s',
   },
-] as const
+]
+
+function HeroFloatCard({
+  icon: Icon,
+  title,
+  subtitle,
+  className,
+  delay,
+}: (typeof floatingCards)[number]) {
+  return (
+      <div
+        className={`glass-panel absolute z-20 flex items-center gap-2.5 rounded-[var(--radius-card)] px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 ${className}`}
+        style={{ animation: `float-soft 4.5s ease-in-out ${delay} infinite` }}
+      >
+      <div
+        className="flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-btn)] bg-primary text-primary-foreground sm:size-9"
+        aria-hidden
+      >
+        <Icon className="size-4 stroke-[1.75] sm:size-[18px]" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-bold leading-none text-foreground sm:text-base">
+          {title}
+        </p>
+        <p className="mt-0.5 text-[11px] capitalize text-muted-foreground sm:text-xs">
+          {subtitle}
+        </p>
+      </div>
+    </div>
+  )
+}
 
 export function Hero() {
   return (
     <section
       id="home"
-      className="relative overflow-hidden isolate"
+      className="relative isolate overflow-hidden"
       aria-labelledby="hero-heading"
     >
-      {/* Atmosphere — soft mesh, not flat */}
+      {/* Soft atmosphere — elite color wash only (no + grid) */}
       <div
         className="pointer-events-none absolute inset-0 -z-20"
         style={{
@@ -47,17 +88,11 @@ export function Hero() {
             linear-gradient(180deg, #f8fafc 0%, #eef2ff 45%, #f0fdfa 100%)
           `,
         }}
-      />
-      <div
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.35]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231e293b' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }}
         aria-hidden
       />
 
+      {/* Elite proportions: py-16 / md:py-24 → ~672px fold at 1440×900 */}
       <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 md:grid-cols-2 md:gap-12 md:py-24 lg:gap-16">
-        {/* Copy */}
         <div
           className="flex flex-col gap-6 md:gap-8"
           style={{ animation: 'fade-up 0.7s ease both' }}
@@ -97,13 +132,13 @@ export function Hero() {
           </p>
         </div>
 
-        {/* Visual plane */}
+        {/* Elite stage: soft glow + radial vignette (not a hard photo card) */}
         <div
-          className="relative flex min-h-[280px] items-center justify-center sm:min-h-[400px] md:min-h-[480px]"
-          style={{ animation: 'fade-up 0.7s ease 0.15s both' }}
+          className="hero-stage relative flex min-h-[280px] items-center justify-center sm:min-h-[400px] md:min-h-[480px]"
+          style={{ animation: 'fade-up 0.7s ease 0.12s both' }}
         >
           <div
-            className="absolute inset-[8%] rounded-full -z-10"
+            className="pointer-events-none absolute inset-[8%] -z-10 rounded-full"
             style={{
               background:
                 'radial-gradient(ellipse at center, rgb(29 78 216 / 0.14) 0%, rgb(15 118 110 / 0.08) 45%, transparent 70%)',
@@ -111,39 +146,20 @@ export function Hero() {
             }}
             aria-hidden
           />
-
           <div className="relative w-full max-w-[220px] sm:max-w-sm md:max-w-md">
             <Image
-              src="/images/hero_branded_final.png"
+              src={BRAND.heroSrc}
               alt="Two students in Aɪra branded shirts — a girl with a laptop and a boy with a school bag"
-              width={600}
-              height={680}
+              width={640}
+              height={640}
               priority
               sizes="(max-width: 640px) 220px, (max-width: 768px) 384px, 448px"
-              className="h-auto w-full object-contain object-top"
-              style={{
-                maskImage:
-                  'radial-gradient(ellipse 72% 72% at 50% 48%, black 15%, rgba(0,0,0,0.85) 40%, transparent 78%)',
-                WebkitMaskImage:
-                  'radial-gradient(ellipse 72% 72% at 50% 48%, black 15%, rgba(0,0,0,0.85) 40%, transparent 78%)',
-              }}
+              className="hero-elite-img h-auto w-full select-none object-contain object-top"
             />
           </div>
 
-          {floatingStats.map(({ icon: Icon, value, label, position, delay }) => (
-            <div
-              key={label}
-              className={`glass-panel absolute z-20 flex items-center gap-2.5 rounded-[var(--radius-card)] px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 ${position}`}
-              style={{ animation: `float-soft 4.5s ease-in-out ${delay} infinite` }}
-            >
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-btn)] bg-primary text-primary-foreground sm:size-9">
-                <Icon className="size-4 stroke-[1.75] sm:size-[18px]" aria-hidden />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold leading-none text-foreground sm:text-base">{value}</p>
-                <p className="mt-0.5 text-[11px] capitalize text-muted-foreground sm:text-xs">{label}</p>
-              </div>
-            </div>
+          {floatingCards.map((card) => (
+            <HeroFloatCard key={card.title} {...card} />
           ))}
         </div>
       </div>

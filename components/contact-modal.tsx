@@ -41,7 +41,7 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
       <div className="relative w-full max-w-lg bg-slate-900/90 border border-white/20 rounded-[2.5rem] overflow-hidden shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in duration-300">
         {/* Background gradient effects */}
         <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-[80px]" />
-        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/20 rounded-full blur-[80px]" />
+        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-[var(--primary)]/20 rounded-full blur-[80px]" />
 
         {/* Header */}
         <div className="p-8 pb-4 relative">
@@ -105,7 +105,7 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
           {/* Address */}
           <div className="group bg-white/5 border border-white/10 p-5 rounded-3xl hover:bg-white/10 transition-all duration-300">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-purple-500/20 flex items-center justify-center text-purple-400 shrink-0 group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-[var(--primary)]/20 flex items-center justify-center text-[var(--primary)] shrink-0 group-hover:scale-110 transition-transform">
                 <MapPin className="w-6 h-6" />
               </div>
               <div>

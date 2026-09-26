@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Instagram } from 'lucide-react'
 import { AudienceNavLink } from '@/components/audience-nav-link'
-import { BrandWordmark } from '@/components/brand'
+import { BrandIcon, BrandWordmark } from '@/components/brand'
 import { CTAS, EXTERNAL, BRAND, SOCIAL } from '@/lib/site'
 
 function XIcon({ className }: { className?: string }) {
@@ -26,14 +26,15 @@ interface FooterProps {
 export function Footer({ onContactClick }: FooterProps) {
   return (
     <footer className="relative overflow-hidden bg-slate-950 pt-24 pb-12 text-white">
-      <div className="pointer-events-none absolute top-0 left-1/4 -z-0 h-[600px] w-[600px] rounded-full bg-purple-900/10 blur-[120px]" />
-      <div className="pointer-events-none absolute right-1/4 bottom-0 -z-0 h-[500px] w-[500px] rounded-full bg-blue-900/10 blur-[120px]" />
+      <div className="pointer-events-none absolute top-0 left-1/4 -z-0 h-[600px] w-[600px] rounded-full bg-blue-900/10 blur-[120px]" />
+      <div className="pointer-events-none absolute right-1/4 bottom-0 -z-0 h-[500px] w-[500px] rounded-full bg-teal-900/10 blur-[120px]" />
 
       <div className="container relative z-10 mx-auto max-w-7xl px-4 md:px-6">
         <div className="mb-20 grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <div className="mb-8 flex items-center space-x-2">
-              <Link href="/" aria-label={BRAND.name}>
+              <Link href="/" aria-label={BRAND.name} className="inline-flex items-center gap-2.5">
+                <BrandIcon size={44} className="size-11" />
                 <BrandWordmark
                   tone="inherit"
                   className="bg-gradient-to-r from-sky-300 via-blue-400 to-cyan-300 bg-clip-text text-3xl font-black tracking-tighter text-transparent"
@@ -72,12 +73,12 @@ export function Footer({ onContactClick }: FooterProps) {
             </h4>
             <ul className="space-y-4 text-slate-400">
               <li>
-                <a
-                  href="#features"
+                <Link
+                  href="/#features"
                   className="transition-colors duration-300 hover:text-blue-400"
                 >
                   Features
-                </a>
+                </Link>
               </li>
               <li>
                 <AudienceNavLink
@@ -96,12 +97,12 @@ export function Footer({ onContactClick }: FooterProps) {
                 </AudienceNavLink>
               </li>
               <li>
-                <a
-                  href="#courses"
+                <Link
+                  href="/#courses"
                   className="transition-colors duration-300 hover:text-blue-400"
                 >
                   Courses
-                </a>
+                </Link>
               </li>
               <li>
                 <Link
@@ -202,7 +203,8 @@ export function Footer({ onContactClick }: FooterProps) {
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
               <p className="text-sm font-medium text-slate-500">
-                &copy; {new Date().getFullYear()} Aɪra. All rights reserved.
+                &copy; {new Date().getFullYear()} {BRAND.legalName}. All rights
+                reserved.
               </p>
             </div>
             <div className="flex flex-wrap justify-center gap-8 text-sm font-medium text-slate-500">

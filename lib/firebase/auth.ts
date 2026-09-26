@@ -411,9 +411,10 @@ async function signInWithProviderPopup(
 
 export async function signUpWithEmail(
   input: SignUpInput,
-): Promise<UserCredential> {
+): Promise<UserCredential & { verificationEmailSent?: boolean }> {
   const email = assertEmailQuality(input.email)
   const auth = await ensureAuthReady()
+  console.info('[auth] signup started')
   analytics.signupStarted('email')
   try {
     const cred = await createUserWithEmailAndPassword(
@@ -421,6 +422,7 @@ export async function signUpWithEmail(
       email,
       input.password,
     )
+    console.info('[auth] user created')
     await updateProfile(cred.user, { displayName: input.name.trim() })
     try {
       await saveUserProfile(cred.user, {
@@ -434,11 +436,15 @@ export async function signUpWithEmail(
     } catch (profileErr) {
       console.error('[auth] profile save failed', profileErr)
     }
+    let verificationEmailSent = false
     try {
+      console.info('[auth] sending verification email')
       await requestVerificationEmail(cred.user, input.name.trim())
+      verificationEmailSent = true
+      console.info('[auth] verification email sent')
     } catch (verifyErr) {
       console.warn(
-        '[auth] send verification after signup failed:',
+        '[auth] verification email failed:',
         getAuthErrorCode(verifyErr) || 'unknown',
       )
     }
@@ -455,7 +461,7 @@ export async function signUpWithEmail(
     const role =
       normalizeAppRole(input.role) === 'admin' ? 'student' : normalizeAppRole(input.role)
     void analytics.setUserProperties({ user_role: role || 'student' })
-    return cred
+    return Object.assign(cred, { verificationEmailSent })
   } catch (err) {
     analytics.signupFailed('email', getAuthErrorCode(err) || 'unknown')
     console.warn('[auth] email signup failed:', getAuthErrorCode(err) || 'unknown')

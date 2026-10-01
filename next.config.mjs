@@ -20,7 +20,7 @@ const enableTutorProxy =
  * Tutor static media lives under /tutor-media/*.
  */
 const tutorDevRewrites = [
-  // Vite / HMR
+  // Vite / HMR client assets (WS still connects directly to :5173 — see tutor vite.config)
   { source: '/@vite/:path*', destination: `${TUTOR_DEV}/@vite/:path*` },
   { source: '/@react-refresh', destination: `${TUTOR_DEV}/@react-refresh` },
   { source: '/@fs/:path*', destination: `${TUTOR_DEV}/@fs/:path*` },
@@ -28,6 +28,8 @@ const tutorDevRewrites = [
   { source: '/src/:path*', destination: `${TUTOR_DEV}/src/:path*` },
   { source: '/node_modules/:path*', destination: `${TUTOR_DEV}/node_modules/:path*` },
   { source: '/theme-boot.js', destination: `${TUTOR_DEV}/theme-boot.js` },
+  // Vite dep pre-bundles (pdfjs, thinking-orbs, etc.) — missing these causes blank/error loaders
+  { source: '/.vite/:path*', destination: `${TUTOR_DEV}/.vite/:path*` },
   // Tutor-only static namespace (must not collide with landing /images, /brand, etc.)
   { source: '/tutor-media/:path*', destination: `${TUTOR_DEV}/tutor-media/:path*` },
   { source: '/tutor-assets/:path*', destination: `${TUTOR_DEV}/tutor-assets/:path*` },

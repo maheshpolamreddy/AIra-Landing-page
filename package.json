@@ -13,6 +13,7 @@
     "start": "next start",
     "lint": "eslint .",
     "auth:sync-domains": "node scripts/sync-auth-domains.mjs",
+    "auth:enable-sms-regions": "node --env-file=.env.local scripts/enable-sms-regions.mjs",
     "welcome:backfill": "node scripts/backfill-welcome-email.mjs"
   },
   "dependencies": {

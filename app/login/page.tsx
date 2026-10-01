@@ -3,15 +3,7 @@
 import { Suspense, useState, useEffect, useRef, type FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import {
-  Eye,
-  EyeOff,
-  Loader2,
-  ArrowLeft,
-  ArrowRight,
-  Mail,
-  Lock,
-} from 'lucide-react'
+import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SocialLogin } from '@/components/social-login'
@@ -19,6 +11,7 @@ import {
   AuthShell,
   authInputClassName,
   authLabelClassName,
+  authLinkClassName,
   authPrimaryBtnClassName,
 } from '@/components/auth-shell'
 import {
@@ -42,8 +35,8 @@ import {
 
 function LoginFallback() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#060912]">
-      <Loader2 className="size-6 animate-spin text-sky-300" />
+    <div className="flex min-h-screen items-center justify-center bg-[#f8fafc]">
+      <Loader2 className="size-6 animate-spin text-[#1d4ed8]" />
     </div>
   )
 }
@@ -145,7 +138,7 @@ function LoginPageContent() {
 
   const autoContinued = useRef(false)
   useEffect(() => {
-    if (fromSignOut) return
+    if (!mounted || fromSignOut) return
     if (authLoading || !user || autoContinued.current || loading) return
     autoContinued.current = true
     void (async () => {
@@ -165,7 +158,7 @@ function LoginPageContent() {
       })
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user, loading, fromSignOut])
+  }, [mounted, authLoading, user, loading, fromSignOut])
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault()
@@ -173,6 +166,10 @@ function LoginPageContent() {
     const emailCheck = checkEmailQuality(email)
     if (!emailCheck.ok) {
       setError(emailCheck.error)
+      return
+    }
+    if (!password.trim()) {
+      setError('Enter your password.')
       return
     }
     setLoading(true)
@@ -189,51 +186,47 @@ function LoginPageContent() {
     }
   }
 
-  if (!mounted || authLoading || !signOutSettled) return <LoginFallback />
-  if (user && !fromSignOut) return <LoginFallback />
+  if (!signOutSettled) return <LoginFallback />
+  if (mounted && user && !fromSignOut) return <LoginFallback />
+
+  const signupHref = (() => {
+    const params = new URLSearchParams()
+    if (redirectParam) params.set('redirect', redirectParam)
+    if (intent) params.set('intent', intent)
+    const q = params.toString()
+    return q ? `/signup?${q}` : '/signup'
+  })()
 
   return (
     <AuthShell
-      panelHeadline={
-        <>
-          Elevate Your{' '}
-          <span className="bg-gradient-to-r from-[#7dd3fc] to-[#38bdf8] bg-clip-text text-transparent">
-            Academic Potential
-          </span>
-        </>
-      }
-      panelSupport="Experience the future of personalized education. Master JEE, NEET, and more with Aira."
+      variant="login"
+      panelHeadline="Welcome back"
+      panelSupport="Sign in to continue learning with personalized AI paths for exams and careers."
     >
       <div className="mb-6">
-        <h2 className="text-[1.7rem] font-bold tracking-tight text-slate-900">
-          Sign In
+        <h2 className="text-[1.65rem] font-bold tracking-tight text-slate-900">
+          Sign in
         </h2>
-        <p className="mt-1 text-sm text-slate-500">
-          {intentCopy ?? 'Ready to excel today?'}
+        <p className="mt-1.5 text-sm text-slate-500">
+          {intentCopy ?? 'Enter your credentials to continue.'}
         </p>
       </div>
 
-      <form onSubmit={handleLogin} className="space-y-4">
+      <form onSubmit={handleLogin} className="space-y-4" noValidate>
         <div className="space-y-1.5">
           <Label htmlFor="email" className={authLabelClassName}>
-            Email / Roll Number
+            Email
           </Label>
-          <div className="relative">
-            <Mail
-              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400"
-              aria-hidden
-            />
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@example.com"
-              required
-              autoComplete="email"
-              className={`${authInputClassName} pl-10`}
-            />
-          </div>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@example.com"
+            required
+            autoComplete="email"
+            className={authInputClassName}
+          />
         </div>
 
         <div className="space-y-1.5">
@@ -241,27 +234,20 @@ function LoginPageContent() {
             <Label htmlFor="password" className={authLabelClassName}>
               Password
             </Label>
-            <Link
-              href="/forgot-password"
-              className="text-xs font-semibold text-[#3b82f6] hover:underline"
-            >
+            <Link href="/forgot-password" className={`text-xs ${authLinkClassName}`}>
               Forgot password?
             </Link>
           </div>
           <div className="relative">
-            <Lock
-              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400"
-              aria-hidden
-            />
             <Input
               id="password"
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your security key"
+              placeholder="Enter your password"
               required
               autoComplete="current-password"
-              className={`${authInputClassName} pr-10 pl-10`}
+              className={`${authInputClassName} pr-10`}
             />
             <button
               type="button"
@@ -278,11 +264,11 @@ function LoginPageContent() {
           </div>
         </div>
 
-        {error && (
+        {error ? (
           <p role="alert" className="text-sm font-medium text-rose-600">
             {error}
           </p>
-        )}
+        ) : null}
 
         <button type="submit" disabled={loading} className={authPrimaryBtnClassName}>
           {loading ? (
@@ -291,10 +277,7 @@ function LoginPageContent() {
               Signing in…
             </span>
           ) : (
-            <>
-              Sign In
-              <ArrowRight className="size-4 stroke-[2.25]" aria-hidden />
-            </>
+            'Sign in'
           )}
         </button>
       </form>
@@ -303,31 +286,23 @@ function LoginPageContent() {
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-slate-200" />
         </div>
-        <div className="relative flex justify-center text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase">
-          <span className="bg-white px-3">Standard Access</span>
+        <div className="relative flex justify-center text-xs text-slate-400">
+          <span className="bg-white px-3">or</span>
         </div>
       </div>
 
       <SocialLogin
-        onError={setError}
+        layout="pair"
+        onError={(msg) => setError(msg || null)}
         onSignedIn={async (uid) => {
           await goAfterAuth(uid)
         }}
       />
 
-      <p className="mt-5 text-center text-sm text-slate-500">
+      <p className="mt-6 text-center text-sm text-slate-500">
         Don&apos;t have an account?{' '}
-        <Link
-          href={(() => {
-            const params = new URLSearchParams()
-            if (redirectParam) params.set('redirect', redirectParam)
-            if (intent) params.set('intent', intent)
-            const q = params.toString()
-            return q ? `/signup?${q}` : '/signup'
-          })()}
-          className="font-semibold text-[#22d3ee] hover:underline"
-        >
-          Create one now
+        <Link href={signupHref} className={authLinkClassName}>
+          Create account
         </Link>
       </p>
 
@@ -336,7 +311,7 @@ function LoginPageContent() {
         className="mt-4 flex items-center justify-center gap-1.5 text-sm text-slate-400 hover:text-slate-600"
       >
         <ArrowLeft className="size-3.5 stroke-[1.75]" aria-hidden />
-        Back to gateway
+        Back to home
       </Link>
     </AuthShell>
   )

@@ -1,14 +1,18 @@
 import {
   GoogleAuthProvider,
   OAuthProvider,
+  RecaptchaVerifier,
   createUserWithEmailAndPassword,
   getAdditionalUserInfo,
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  signInWithPhoneNumber,
   signInWithPopup,
   signOut,
   updateProfile,
+  type Auth,
+  type ConfirmationResult,
   type User,
   type UserCredential,
   type AuthProvider,
@@ -510,6 +514,168 @@ export async function signInWithApple(): Promise<UserCredential> {
   provider.addScope('email')
   provider.addScope('name')
   return signInWithProviderPopup(provider, 'apple')
+}
+
+export type PhoneSignInSession = {
+  confirmation: ConfirmationResult
+  e164: string
+}
+
+/** Normalize to E.164. Accepts +91… or 10-digit Indian mobiles. */
+export function normalizePhoneE164(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed) throw new Error('Enter your mobile number.')
+  const digits = trimmed.replace(/[^\d+]/g, '')
+  if (digits.startsWith('+') && digits.length >= 11) return digits
+  const only = digits.replace(/\D/g, '')
+  if (only.length === 10) return `+91${only}`
+  if (only.length === 12 && only.startsWith('91')) return `+${only}`
+  if (only.startsWith('0') && only.length === 11) return `+91${only.slice(1)}`
+  throw new Error('Enter a valid mobile number with country code (e.g. +91…).')
+}
+
+type RecaptchaStore = {
+  __airaRecaptcha?: Record<string, RecaptchaVerifier | undefined>
+}
+
+function isAlreadyRenderedError(err: unknown): boolean {
+  const msg =
+    err instanceof Error
+      ? err.message
+      : typeof err === 'object' && err !== null && 'message' in err
+        ? String((err as { message: unknown }).message)
+        : String(err ?? '')
+  return /already been rendered/i.test(msg)
+}
+
+/** Tear down every verifier we created and wipe owned host nodes. */
+function clearAllRecaptcha(preferredId?: string) {
+  if (typeof window === 'undefined') return
+  const w = window as unknown as RecaptchaStore
+  const map = w.__airaRecaptcha || {}
+
+  for (const [id, existing] of Object.entries(map)) {
+    if (!existing) continue
+    try {
+      existing.clear()
+    } catch {
+      /* widget may already be gone */
+    }
+    map[id] = undefined
+  }
+  w.__airaRecaptcha = {}
+
+  const wipe = (el: Element | null) => {
+    if (!el) return
+    el.replaceChildren()
+  }
+
+  if (preferredId) wipe(document.getElementById(preferredId))
+  document.querySelectorAll('[data-aira-recaptcha]').forEach(wipe)
+}
+
+function createInvisibleVerifier(auth: Auth, el: HTMLElement): RecaptchaVerifier {
+  el.replaceChildren()
+  return new RecaptchaVerifier(auth, el, { size: 'invisible' })
+}
+
+/**
+ * Start Firebase phone SMS sign-in. Requires Phone provider enabled in Firebase Console.
+ * Pass a remounted host node (or its id) for each attempt.
+ */
+export async function startPhoneSignIn(
+  phoneRaw: string,
+  container: string | HTMLElement,
+): Promise<PhoneSignInSession> {
+  const e164 = normalizePhoneE164(phoneRaw)
+  const auth = await ensureAuthReady()
+  analytics.loginStarted('phone')
+
+  if (typeof window === 'undefined') {
+    throw new Error('Phone sign-in is only available in the browser.')
+  }
+
+  const containerId = typeof container === 'string' ? container : container.id
+  clearAllRecaptcha(containerId)
+
+  let el =
+    typeof container === 'string' ? document.getElementById(container) : container
+  if (!el) {
+    throw new Error('Phone verification failed to initialize. Refresh and try again.')
+  }
+  el.setAttribute('data-aira-recaptcha', 'true')
+
+  let verifier: RecaptchaVerifier
+  try {
+    verifier = createInvisibleVerifier(auth, el)
+  } catch (err) {
+    clearAllRecaptcha(containerId)
+    const parent = el.parentElement
+    if (!parent) {
+      analytics.loginFailed('phone', getAuthErrorCode(err) || 'unknown')
+      throw new Error(mapAuthError(err, 'phone'))
+    }
+    // Last-resort: brand-new empty node (same id) so grecaptcha has a clean host.
+    const next = document.createElement('div')
+    next.id = containerId || `recaptcha-${Date.now()}`
+    next.setAttribute('aria-hidden', 'true')
+    next.setAttribute('data-aira-recaptcha', 'true')
+    next.className = el.className
+    parent.replaceChild(next, el)
+    el = next
+    try {
+      verifier = createInvisibleVerifier(auth, el)
+    } catch (retryErr) {
+      analytics.loginFailed('phone', getAuthErrorCode(retryErr) || 'unknown')
+      throw new Error(mapAuthError(retryErr, 'phone'))
+    }
+  }
+
+  const w = window as unknown as RecaptchaStore
+  w.__airaRecaptcha = { [el.id || containerId]: verifier }
+
+  try {
+    // Do not call render() separately — signInWithPhoneNumber triggers it once.
+    const confirmation = await signInWithPhoneNumber(auth, e164, verifier)
+    return { confirmation, e164 }
+  } catch (err) {
+    clearAllRecaptcha(el.id || containerId)
+    if (isAlreadyRenderedError(err)) {
+      analytics.loginFailed('phone', 'recaptcha-already-rendered')
+      console.warn('[auth] phone start failed: recaptcha-already-rendered')
+      throw new Error(
+        'Phone verification needs a fresh start. Tap Send code again (or refresh once).',
+      )
+    }
+    analytics.loginFailed('phone', getAuthErrorCode(err) || 'unknown')
+    console.warn(
+      '[auth] phone start failed:',
+      getAuthErrorCode(err) || 'unknown',
+      err instanceof Error ? err.message : err,
+    )
+    throw new Error(mapAuthError(err, 'phone'))
+  }
+}
+
+export async function confirmPhoneSignIn(
+  session: PhoneSignInSession,
+  code: string,
+): Promise<UserCredential> {
+  const otp = code.replace(/\D/g, '')
+  if (otp.length < 4) throw new Error('Enter the verification code from SMS.')
+  try {
+    const cred = await session.confirmation.confirm(otp)
+    const isNewUser = getAdditionalUserInfo(cred)?.isNewUser === true
+    await upsertOAuthProfile(cred, 'phone')
+    if (isNewUser) analytics.signUp('phone')
+    else analytics.login('phone')
+    void analytics.setUser(cred.user.uid)
+    return cred
+  } catch (err) {
+    analytics.loginFailed('phone', getAuthErrorCode(err) || 'unknown')
+    console.warn('[auth] phone confirm failed:', getAuthErrorCode(err) || 'unknown')
+    throw new Error(mapAuthError(err, 'phone'))
+  }
 }
 
 export async function resetPassword(email: string): Promise<void> {

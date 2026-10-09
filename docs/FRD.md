@@ -468,7 +468,11 @@ From `lib/learning-courses.ts`: `LearningCourse`, `SchoolCourse` (+ `gradeBand`,
 
 | Variable | Consumer area |
 |----------|---------------|
-| `GROQ_API_KEY` | `/api/chat` |
+| `GROQ_API_KEY` | `/api/chat`, `/api/ai/complete`, SVG fallback for `/api/ai/image` |
+| `NVIDIA_API_KEY` | `/api/ai/image` (primary) |
+| `NVIDIA_API_KEY_FALLBACK` | `/api/ai/image` (secondary key) |
+| `NVIDIA_IMAGE_MODEL` | Optional; default `black-forest-labs/flux.2-klein-4b` (GenAI host) |
+| `NVIDIA_IMAGE_MODEL_FALLBACK` | Optional; default `black-forest-labs/flux.1-dev` |
 | `SARVAM_API_KEY` | `/api/tts`, `/api/tts/health` |
 | `WEEKLY_EXAM_BRIDGE_SECRET` | `/api/weekly-exams` |
 | `NEXT_PUBLIC_WEEKLY_EXAM_BRIDGE_SECRET` | `/api/weekly-exams` |
@@ -531,7 +535,8 @@ From `lib/learning-courses.ts`: `LearningCourse`, `SchoolCourse` (+ `gradeBand`,
 | **NFR-004** | Tutor production build shall emit code-split vendor chunks (react/three/ui/pdf) per Vite config. | Should | `vite.config.ts` `manualChunks` |
 | **NFR-005** | Accessibility settings that set document data attributes (font size, high contrast, reduce motion) shall apply without a full remount of the app shell. | Should | Settings page + store subscribers |
 | **NFR-006** | Primary student flows shall be usable on mobile and desktop viewports. | Should | `[ASSUMPTION]` responsive CSS exists; no automated visual regression suite found |
-| **NFR-007** | Secrets for landing Groq/Sarvam shall remain server-side (`GROQ_API_KEY`, `SARVAM_API_KEY`). | Must | Not `NEXT_PUBLIC_` |
+| **NFR-007** | Secrets for landing Groq/Sarvam/NVIDIA shall remain server-side (`GROQ_API_KEY`, `SARVAM_API_KEY`, `NVIDIA_API_KEY`, `NVIDIA_API_KEY_FALLBACK`). | Must | Not `NEXT_PUBLIC_` |
+| **FR-API-IMAGE-001** | `POST /api/ai/image` shall generate education-only diagrams via NVIDIA (key A → key B) and fall back to SVG structured diagrams; refuse non-educational prompts with `NOT_EDUCATIONAL`. | Must | Auth required; never expose nvapi keys to the client |
 | **NFR-008** | Tutor AI provider keys are `VITE_*` and therefore shipped to the browser — treat as public. | Must (constraint) | Security design debt; not a claim of secrecy |
 | **NFR-009** | Open redirects via login `redirect` param shall be blocked by allow-list sanitization. | Must | `sanitizeAppRedirect` |
 | **NFR-010** | i18n framework is initialized with an English resource bundle; UI language options beyond English are limited as implemented. | Could | `src/i18n.ts` |
